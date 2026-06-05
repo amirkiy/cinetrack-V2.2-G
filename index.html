@@ -75,11 +75,11 @@
 
     /* ---- Loaders ---- */
     @keyframes spin { to { transform: rotate(360deg); } }
-    .spinner { width: 11px; height: 11px; border: 2px solid rgba(0,188,212,0.3); border-top-color: var(--cyan); border-radius: 50%; animation: spin 0.8s linear infinite; display: inline-block; flex-shrink: 0; }
+    .spinner { width: 13px; height: 13px; border: 2px solid rgba(0,188,212,0.3); border-top-color: var(--cyan); border-radius: 50%; animation: spin 0.8s linear infinite; display: inline-block; flex-shrink: 0; }
     .loading-badge { display: inline-flex; align-items: center; gap: 5px; background: rgba(0,188,212,0.12); color: var(--cyan); border: 1px solid rgba(0,188,212,0.25); padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: normal; }
 
     /* ---- AI Crawler Tracker Box ---- */
-    #aiCrawlerTracker { background: rgba(0, 188, 212, 0.1); border: 1px solid rgba(0, 188, 212, 0.3); border-radius: 8px; padding: 12px 15px; margin-top: 15px; color: var(--cyan); font-size: 13px; font-weight: bold; display: none; }
+    #aiCrawlerTracker { background: rgba(0, 188, 212, 0.08); border: 1px dashed rgba(0, 188, 212, 0.4); border-radius: 10px; padding: 14px 18px; margin-top: 15px; color: var(--cyan); font-size: 13px; line-height: 1.6; display: none; }
     
     /* ---- Dashboard ---- */
     .dashboard-stats { margin: 0 30px 30px; display: grid; grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); gap: 15px; }
@@ -133,7 +133,6 @@
     .stars-rating span.active { color: #ffc107; }
     .settings-section { border-bottom: 1px solid var(--border); padding-bottom: 18px; margin-bottom: 18px; }
     .settings-section-title { font-size: 13px; font-weight: 700; color: var(--text-main); margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
-    .backup-section { margin: 20px 30px; display: flex; gap: 15px; flex-wrap: wrap; }
 
     @media (max-width: 768px) {
       .hero-content { flex-direction: column; align-items: center; }
@@ -200,7 +199,7 @@
 
   <main class="main-grid" id="mainGrid"></main>
 
-  <section class="backup-section">
+  <section class="backup-section" style="margin: 20px 30px; display: flex; gap: 15px;">
     <button class="btn btn-secondary" onclick="exportLibrary()">📤 Export Library</button>
     <button class="btn btn-secondary" onclick="document.getElementById('importFileInput').click()">📥 Import Library</button>
     <input type="file" id="importFileInput" style="display:none;" accept=".json" onchange="importLibrary(event)">
@@ -243,7 +242,6 @@
         <label>متن یادداشت‌ها، لیست فیلم‌های آینده یا برنامه‌ تماشا:</label>
         <textarea id="generalNotesTextArea" class="form-control" style="min-height:300px; resize:vertical;" oninput="saveGeneralNotes(this.value)"></textarea>
       </div>
-      <p style="font-size:12px; color:var(--text-muted);">متن همزمان با تایپ ذخیره می‌شود.</p>
     </div>
   </div>
 
@@ -301,9 +299,6 @@
 
     let searchDebounceTimer;
 
-    /* ============================================================
-       INIT
-    ============================================================ */
     function init() {
       renderDashboard();
       extractAndRenderGenres();
@@ -338,9 +333,6 @@
       renderWatchNext();
     }
 
-    /* ============================================================
-       EPISODE & PROGRESS HELPERS
-    ============================================================ */
     function getTotalWatchedEpisodes(item) {
       if (!item.seasonData || Object.keys(item.seasonData).length === 0) return parseInt(item.episode) || 0;
       let watched = 0;
@@ -371,10 +363,9 @@
       const total = parseInt(totalSeasons);
       if (isNaN(total) || total <= 0) return {};
       const seasonData = {};
-      const maxSeasons = Math.min(total, 20);
-      for (let s = 1; s <= maxSeasons; s++) {
+      for (let s = 1; s <= Math.min(total, 20); s++) {
         try {
-          if (s > 1) await new Promise(r => setTimeout(r, 200));
+          if (s > 1) await new Promise(r => setTimeout(r, 150));
           const res = await fetch(`https://www.omdbapi.com/?apikey=${OMDB_KEY}&i=${imdbID}&Season=${s}`);
           const data = await res.json();
           if (data.Response === "True" && data.Episodes && data.Episodes.length > 0) seasonData[s] = data.Episodes.length;
@@ -384,28 +375,20 @@
       return seasonData;
     }
 
-    /* ============================================================
-       🧠 HYBRID SMART CRAWLER ENGINE (RE-BUILT & ULTRASONIC)
-    ============================================================ */
-    function cleanStringForMatching(str) {
-      return str.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
-    }
-
     async function fetchHtmlLinks(url) {
         const proxies = [
             (u) => "https://api.allorigins.win/raw?url=" + encodeURIComponent(u) + "&_cb=" + Date.now(),
             (u) => "https://api.codetabs.com/v1/proxy/?url=" + encodeURIComponent(u)
         ];
-        
         let html = ""; let success = false;
         for (let proxyFn of proxies) {
             try {
                 const proxyUrl = proxyFn(url);
                 const res = await fetch(proxyUrl);
                 if (res.ok) { html = await res.text(); success = true; break; }
-            } catch(e) { console.warn("Proxy swap triggered..."); }
+            } catch(e) { console.warn("Proxy swapping..."); }
         }
-        if (!success) throw new Error("سرورهای پروکسی پاسخگو نیستند. اینترنت خود را چک کنید.");
+        if (!success) throw new Error("سرور پروکسی آرشیو پاسخگو نیست. اتصال اینترنت را چک کنید.");
         
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, "text/html");
@@ -415,95 +398,9 @@
             .map(h => { try { return new URL(h, url).href; } catch(e) { return h; } });
     }
 
-    function findBestLocalMatch(links, target, type, extraParam = null) {
-        if (!links || links.length === 0) return -1;
-        
-        const normalizedLinks = links.map(l => {
-            const parts = l.replace(/\/$/, '').split('/');
-            return decodeURIComponent(parts[parts.length - 1]).toLowerCase();
-        });
-
-        if (type === 'series') {
-            const targetClean = cleanStringForMatching(target);
-            const targetWords = targetClean.split(' ').filter(w => w.length > 1);
-            let bestIdx = -1; let maxMatches = 0;
-            
-            for (let i = 0; i < normalizedLinks.length; i++) {
-                const segment = normalizedLinks[i].replace(/[^a-z0-9\s]/g, ' ');
-                let matchCount = 0;
-                targetWords.forEach(word => { if (segment.includes(word)) matchCount++; });
-                if (matchCount > maxMatches) { maxMatches = matchCount; bestIdx = i; }
-            }
-            if (bestIdx === -1) {
-                const compactTarget = targetClean.replace(/\s+/g, '');
-                for (let i = 0; i < normalizedLinks.length; i++) {
-                    const compactSeg = normalizedLinks[i].replace(/[^a-z0-9]/g, '');
-                    if (compactSeg.includes(compactTarget) || compactTarget.includes(compactSeg)) return i;
-                }
-            }
-            return bestIdx;
-        }
-        
-        if (type === 'season') {
-            const sNum = parseInt(extraParam);
-            const sPad = sNum.toString().padStart(2, '0');
-            for (let i = 0; i < normalizedLinks.length; i++) {
-                const seg = normalizedLinks[i];
-                if (seg.includes(`s${sPad}`) || seg.includes(`season${sNum}`) || seg.includes(`season.${sNum}`) || seg.includes(`season_${sPad}`) || seg.includes(`season ${sNum}`) || seg.includes(`s${sNum}`)) return i;
-            }
-            for (let i = 0; i < normalizedLinks.length; i++) {
-                const nums = normalizedLinks[i].match(/\d+/g);
-                if (nums && nums.map(Number).includes(sNum)) return i;
-            }
-            return -1;
-        }
-        
-        if (type === 'quality') {
-            const qualities = ['1080', '720', '480'];
-            for (let q of qualities) {
-                for (let i = 0; i < normalizedLinks.length; i++) {
-                    if (normalizedLinks[i].includes(q)) return i;
-                }
-            }
-            return -1;
-        }
-        
-        if (type === 'episode') {
-            const epNum = parseInt(extraParam);
-            const epPad = epNum.toString().padStart(2, '0');
-            for (let i = 0; i < normalizedLinks.length; i++) {
-                const seg = normalizedLinks[i];
-                if (seg.includes(`e${epPad}`) || seg.includes(`ep${epPad}`) || seg.includes(`e${epNum}`) || seg.includes(`ep${epNum}`)) return i;
-            }
-            for (let i = 0; i < normalizedLinks.length; i++) {
-                const seg = normalizedLinks[i].replace('1080','').replace('720','').replace('480','');
-                const nums = seg.match(/\d+/g);
-                if (nums && nums.map(Number).includes(epNum)) return i;
-            }
-            return -1;
-        }
-        return -1;
-    }
-
-    async function askAIForIndex(promptStr, maxIndex) {
-      const apiKey = localStorage.getItem("cinetrack_or_key");
-      const model = localStorage.getItem("cinetrack_or_model") || "deepseek/deepseek-chat";
-      if(!apiKey || apiKey.trim() === "") return -1;
-      try {
-          const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-              method: "POST",
-              headers: { "Authorization": `Bearer ${apiKey.trim()}`, "Content-Type": "application/json" },
-              body: JSON.stringify({ model, messages: [{ role: "user", content: promptStr + "\nReturn ONLY the number index." }], temperature: 0 })
-          });
-          const data = await res.json();
-          if (data.choices && data.choices[0]) {
-              const numMatch = data.choices[0].message.content.trim().match(/\d+/);
-              if (numMatch) { const idx = parseInt(numMatch[0], 10); if (idx >= 0 && idx <= maxIndex) return idx; }
-          }
-      } catch(e) {}
-      return -1;
-    }
-
+    /* ============================================================
+       🧠 AUTONOMOUS STEP-BY-STEP AI ROUTER ENGINE (IDEAS ENHANCED)
+    ============================================================ */
     async function smartAILinkFinder(item, season, episode) {
         let tracker = document.getElementById("aiCrawlerTracker");
         if (!tracker) {
@@ -511,58 +408,133 @@
             const details = document.querySelector(".hero-details"); if(details) details.appendChild(tracker);
         }
         tracker.style.display = "block";
-        const log = (msg) => { tracker.innerHTML = `⚡ <b>موتور هوشمند:</b> ${msg}`; };
+        const log = (msg) => { tracker.innerHTML = `⚡ <b>مسیریاب خودمختار AI:</b> ${msg}`; };
         
         let currentUrl = localStorage.getItem("cinetrack_external_url") || "https://dls2.film2cinemaha.top/DonyayeSerial/donyaye_serial_all_archive.html";
-        
+        const apiKey = localStorage.getItem("cinetrack_or_key");
+        const hasAi = apiKey && apiKey.trim() !== "";
+
+        log("کاشف هوشمند استارت خورد. در حال بارگذاری لیست دایرکتوری مادر...");
+
         try {
-            log(`اسکن سریع فولدر اصلی برای یافتن سری کارتون/سریال...`);
-            let links = await fetchHtmlLinks(currentUrl);
-            if (links.length === 0) throw new Error("آرشیو خالی است یا ساختار تغییر کرده.");
+            // Traverse down up to 5 folder layers dynamically
+            for (let step = 1; step <= 5; step++) {
+                log(`اتصال به مخزن آرشیو... در حال بررسی لایه ساختاری ${step}...`);
+                let links = await fetchHtmlLinks(currentUrl);
+                if (!links || links.length === 0) throw new Error(`پوشه لایه ${step} خالی است یا دسترسی به آن با خطای CORS مواجه شد.`);
 
-            let matchIndex = findBestLocalMatch(links, item.title, 'series');
-            if (matchIndex === -1) {
-                log(`درخواست موقعیت‌یابی نام فولدر از هوش مصنوعی نجات...`);
-                const prompt = `TV show: "${item.title}". Return index.\n${links.slice(0, 100).map((l, i) => `${i}: ${l}`).join('\n')}`;
-                matchIndex = await askAIForIndex(prompt, links.length - 1); if (matchIndex === -1) matchIndex = 0;
-            }
-            currentUrl = links[matchIndex]; if(!currentUrl.endsWith('/')) currentUrl += '/';
+                // Clean the text strings for easy mapping
+                let linkObjects = links.map((l, index) => {
+                    const parts = l.replace(/\/$/, '').split('/');
+                    const decodedName = decodeURIComponent(parts[parts.length - 1] || l);
+                    return { index, url: l, name: decodedName.toLowerCase() };
+                });
 
-            log(`ورود به پوشه اثر و یافتن فصل ${season}...`);
-            links = await fetchHtmlLinks(currentUrl);
-            matchIndex = findBestLocalMatch(links, null, 'season', season);
-            if (matchIndex === -1) {
-                const prompt = `Find Season ${season} index.\n${links.map((l, i) => `${i}: ${l}`).join('\n')}`;
-                matchIndex = await askAIForIndex(prompt, links.length - 1); if (matchIndex === -1) matchIndex = 0;
-            }
-            currentUrl = links[matchIndex]; if(!currentUrl.endsWith('/')) currentUrl += '/';
+                let chosenIndex = -1;
 
-            log(`فیلتر قسمت و استخراج کیفیت نهایی...`);
-            links = await fetchHtmlLinks(currentUrl);
-            const hasDirectVideos = links.some(l => l.toLowerCase().endsWith('.mkv') || l.toLowerCase().endsWith('.mp4'));
-            
-            if (!hasDirectVideos) {
-                matchIndex = findBestLocalMatch(links, null, 'quality'); if (matchIndex === -1) matchIndex = 0;
-                currentUrl = links[matchIndex]; if(!currentUrl.endsWith('/')) currentUrl += '/';
-                links = await fetchHtmlLinks(currentUrl);
+                if (hasAi) {
+                    log(`ارسال لینک‌های استخراج شده لایه ${step} به مغز متفکر هوش مصنوعی جهت تشخیص الگو...`);
+                    const linksListString = linkObjects.map(o => `${o.index}: "${o.name}"`).join('\n');
+                    
+                    const prompt = `You are an expert autonomous web crawler. We want to find the correct file or folder path for:
+Show Name: "${item.title}"
+Target Season Number: ${season}
+Target Episode Number: ${episode}
+
+Here is the current listing of directories/files on the current page:
+${linksListString}
+
+Task: Analyze the structural pattern of these links (similar to how Breaking Bad or other standard shows are organized here). Select the ONE best integer index that is the direct movie/video file for this exact episode, or the directory folder that leads closer to it.
+Respond ONLY in this exact format, with no extra text: CHOICE: [index_number]`;
+
+                    chosenIndex = await askAIForChoice(prompt, links.length - 1);
+                }
+
+                // Local Fallback Matcher if AI is missing or fails
+                if (chosenIndex === -1) {
+                    if(step === 1 && hasAi) log("⚠️ مغز هوش مصنوعی موقتاً پاسخ نداد؛ سوییچ بر روی الگوریتم تطبیق بومی موازی...");
+                    chosenIndex = findBestLocalMatchFallback(linkObjects, item.title, season, episode);
+                }
+
+                if (chosenIndex === -1 || !links[chosenIndex]) {
+                    throw new Error(`مسیریاب نتوانست الگوی تطبیقی مناسبی در لایه ${step} پیدا کند.`);
+                }
+
+                currentUrl = links[chosenIndex];
+                log(`پوشه/فایل انتخاب شده توسط سیستم: <b style="color:#fff;">${linkObjects[chosenIndex].name}</b>`);
+
+                // Check if we arrived at a direct video link
+                const lowerUrl = currentUrl.toLowerCase();
+                if (lowerUrl.endsWith('.mkv') || lowerUrl.endsWith('.mp4') || lowerUrl.endsWith('.avi')) {
+                    log(`✅ با موفقیت الگو رمزگشایی شد! پیوند ویدیوی مستقیم استخراج گردید.`);
+                    setTimeout(() => { tracker.style.display = "none"; }, 2500);
+                    return currentUrl;
+                }
+
+                // Add trailing slash for folders if missing
+                if (!currentUrl.endsWith('/') && !currentUrl.includes('.')) currentUrl += '/';
+                await new Promise(r => setTimeout(r, 300));
             }
 
-            log(`یافتن فایل ویدیویی مستقیم قسمت ${episode}...`);
-            matchIndex = findBestLocalMatch(links, null, 'episode', episode);
-            if (matchIndex === -1) {
-                const prompt = `Select index for Episode ${episode} direct file.\n${links.map((l, i) => `${i}: ${l}`).join('\n')}`;
-                matchIndex = await askAIForIndex(prompt, links.length - 1); if (matchIndex === -1) matchIndex = 0;
-            }
-            
-            let finalVideoUrl = links[matchIndex];
-            log(`✅ با موفقیت پیدا شد! آماده باز کردن...`);
-            setTimeout(() => { tracker.style.display = "none"; }, 1500);
-            return finalVideoUrl;
+            log(`⚠️ به عمق ۵ لایه ساختاری رسیدیم. پوشه نهایی مادر باز می‌شود...`);
+            setTimeout(() => { tracker.style.display = "none"; }, 3000);
+            return currentUrl;
+
         } catch (e) {
-            log(`❌ خطا در استخراج لینک: ${e.message}`);
-            setTimeout(() => { tracker.style.display = "none"; }, 4000);
+            log(`❌ خطا در سیستم پیدا کردن فایل: ${e.message}`);
+            setTimeout(() => { tracker.style.display = "none"; }, 5000);
             return null;
         }
+    }
+
+    async function askAIForChoice(promptStr, maxIndex) {
+      const apiKey = localStorage.getItem("cinetrack_or_key");
+      const model = localStorage.getItem("cinetrack_or_model") || "deepseek/deepseek-chat";
+      try {
+          const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+              method: "POST",
+              headers: { "Authorization": `Bearer ${apiKey.trim()}`, "Content-Type": "application/json" },
+              body: JSON.stringify({ model, messages: [{ role: "user", content: promptStr }], temperature: 0 })
+          });
+          const data = await res.json();
+          if (data && data.choices && data.choices[0]) {
+              const content = data.choices[0].message.content.trim();
+              const match = content.match(/CHOICE:\s*(\d+)/i);
+              if (match) {
+                  const idx = parseInt(match[1], 10);
+                  if (idx >= 0 && idx <= maxIndex) return idx;
+              }
+          }
+      } catch(e) { console.error("AI Router Call Failed:", e); }
+      return -1;
+    }
+
+    function findBestLocalMatchFallback(linkObjects, title, season, episode) {
+        const sPad = season.toString().padStart(2, '0');
+        const ePad = episode.toString().padStart(2, '0');
+
+        // 1. Look for direct episode pattern file match (e.g. e05, ep05)
+        for (let obj of linkObjects) {
+            if (obj.name.includes(`e${ePad}`) || obj.name.includes(`ep${ePad}`) || obj.name.includes(`e${episode}`)) return obj.index;
+        }
+        // 2. Look for season pattern folder match
+        for (let obj of linkObjects) {
+            if (obj.name.includes(`s${sPad}`) || obj.name.includes(`season${season}`) || obj.name.includes(`season.${season}`) || obj.name.includes(`s${season}`)) return obj.index;
+        }
+        // 3. Look for core title keyword mapping
+        const words = title.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(' ').filter(w => w.length > 1);
+        let bestIdx = -1; let maxMatches = 0;
+        for (let obj of linkObjects) {
+            let m = 0; words.forEach(w => { if (obj.name.includes(w)) m++; });
+            if (m > maxMatches) { maxMatches = m; bestIdx = obj.index; }
+        }
+        if (bestIdx !== -1) return bestIdx;
+        
+        // 4. Quality sorting
+        for (let q of ['1080', '720', '480']) {
+            for (let obj of linkObjects) { if (obj.name.includes(q)) return obj.index; }
+        }
+        return linkObjects.length > 0 ? 0 : -1;
     }
 
     async function openEpisodeLink(id, direction) {
@@ -584,14 +556,14 @@
       const directUrl = await smartAILinkFinder(item, targetSeason, targetEpisode);
       if (directUrl) window.open(directUrl, "_blank");
       else {
-          if(confirm("مغز هوش مصنوعی نتوانست لینک مستقیم را فیلتر کند. آیا مایلید آرشیو مرجع را به صورت دستی باز کنید؟")) {
+          if(confirm("سیستم هوشمند نتوانست لینک مستقیم فایل را فیلتر کند. آیا مایلید صفحه اصلی آرشیو را شخصاً باز کنید؟")) {
              window.open(localStorage.getItem("cinetrack_external_url") || "https://dls2.film2cinemaha.top/DonyayeSerial/donyaye_serial_all_archive.html", "_blank");
           }
       }
     }
 
     /* ============================================================
-       🧠 PURE RELIABLE AI API SYSTEM (RESTORED TO PREVIOUS PERFECT STATE)
+       🧠 PURE RELIABLE AI API SYSTEM (RESTORED & PERFECT)
     ============================================================ */
     async function callOpenRouterAPI(prompt) {
       const apiKey = localStorage.getItem("cinetrack_or_key");
@@ -648,7 +620,7 @@
     }
 
     /* ============================================================
-       SEARCH (OMDb)
+       OMDB & UI CONTROLS
     ============================================================ */
     function handleSearch(query) {
       clearTimeout(searchDebounceTimer);
@@ -695,9 +667,6 @@
       openAddModal(movieData);
     }
 
-    /* ============================================================
-       ADD MODAL
-    ============================================================ */
     function openAddModal(data) {
       const isSeries = data.Type === "series";
       document.getElementById("addModalContent").innerHTML = `
@@ -708,7 +677,6 @@
             <p style="font-size:13px; margin-bottom:5px;">📅 ${data.Year} &nbsp;|&nbsp; ⭐ IMDb: ${data.imdbRating}</p>
             <p style="font-size:13px; margin-bottom:5px;">🎭 ${data.Genre}</p>
             ${isSeries ? `<p style="font-size:12px; color:var(--cyan);">📺 تعداد فصل‌ها: ${data.totalSeasons || '?'}</p>` : ''}
-            <p style="font-size:12px; color:var(--text-muted); line-height:1.6; margin-top:6px;">${data.Plot ? data.Plot.substring(0, 150) + '...' : ''}</p>
           </div>
         </div>
         <input type="hidden" id="formImdbID" value="${data.imdbID}">
@@ -733,7 +701,6 @@
           </div>
           <input type="hidden" id="formRating" value="0">
         </div>
-        ${isSeries ? `<p style="font-size:12px; color:var(--cyan); background:rgba(0,188,212,0.07); padding:8px 12px; border-radius:6px; margin-bottom:12px;">📡 اطلاعات کامل فصل‌ها به صورت خودکار دریافت می‌شود.</p>` : ''}
         <button class="btn" style="width:100%; margin-top:5px;" onclick="saveNewItemToDB()">ثبت در آرشیو</button>
       `;
       document.getElementById("addModal").classList.add("active");
@@ -741,6 +708,7 @@
     }
     function toggleModalSeriesFields(status, isSeries) { const field = document.getElementById("modalSeriesProgress"); if (field) field.style.display = (isSeries && status !== "Planned") ? 'block' : 'none'; }
     function setStarsValue(rating) { const stars = document.querySelectorAll("#modalStars span"); document.getElementById("formRating").value = rating; stars.forEach((s, i) => i < rating ? s.classList.add("active") : s.classList.remove("active")); }
+    
     function saveNewItemToDB() {
       const imdbID = document.getElementById("formImdbID").value;
       const rawData = state.omdbCache[imdbID]; if (!rawData) return;
@@ -753,9 +721,6 @@
       state.items.push(newItem); saveStateToStorage(); closeModal('addModal'); clearSearchInput(); selectItem(newItem.id);
     }
 
-    /* ============================================================
-       HERO SECTION
-    ============================================================ */
     function renderHero() {
       const container = document.getElementById("heroSection");
       if (!state.selectedId || state.items.length === 0) {
@@ -800,7 +765,7 @@
                 <button class="btn btn-secondary" style="padding:6px 12px; font-size:12px; background:#1a3d1a;" onclick="markAsCompleted('${item.id}')">✔️ اتمام نهایی</button>
                 ${streamBtns}
                 <button class="btn" style="padding:6px 14px; font-size:12px;" onclick="askAIBoutMovie('${item.id}', false)">🤖 تحلیل AI</button>
-                <button class="btn btn-secondary" style="padding:6px 10px; font-size:12px;" onclick="askAIBoutMovie('${item.id}', true)" title="بازتولید تحلیل">🔄</button>
+                <button class="btn btn-secondary" style="padding:6px 10px; font-size:12px;" onclick="askAIBoutMovie('${item.id}', true)">🔄</button>
                 <button class="btn btn-delete" style="padding:6px 12px; font-size:12px;" onclick="deleteItem('${item.id}')">🗑️ حذف</button>
               </div>
             </div>
@@ -810,7 +775,7 @@
               <span style="font-size:13px;">🎭 ${item.genre}</span>
               <span style="font-size:13px;">⏱️ ${item.runtime}</span>
               <div style="display:inline-flex; align-items:center; gap:6px; margin-right:auto;">
-                <b style="font-size:12px; color:var(--text-muted);">وضعیت:</b>
+                <b>وضعیت:</b>
                 <select class="sort-select" style="padding:3px 8px; font-size:12px;" onchange="updateItemStatus('${item.id}', this.value)">
                   <option value="Watching" ${item.status === 'Watching' ? 'selected' : ''}>⏳ در حال تماشا</option>
                   <option value="Planned" ${item.status === 'Planned' ? 'selected' : ''}>📅 برنامه‌ریزی شده</option>
@@ -854,6 +819,7 @@
 
     function updateItemStatus(id, newStatus) { const item = state.items.find(i => i.id === id); if (item) { item.status = newStatus; item.lastUpdated = new Date().toISOString(); saveStateToStorage(); renderGrid(); renderHero(); } }
     function updateItemRating(id, newRating) { const item = state.items.find(i => i.id === id); if (item) { item.userRating = newRating; item.lastUpdated = new Date().toISOString(); saveStateToStorage(); renderGrid(); renderHero(); } }
+    
     function incrementProgress(id) {
       const item = state.items.find(i => i.id === id); if (!item || item.type !== 'series') return;
       const totalSeasons = parseInt(item.totalSeasons) || 1;
@@ -864,19 +830,18 @@
       } else { item.episode += 1; }
       item.lastUpdated = new Date().toISOString(); saveStateToStorage(); renderGrid(); renderHero();
     }
+    
     function markAsCompleted(id) { const item = state.items.find(i => i.id === id); if (item) { item.status = 'Completed'; item.lastUpdated = new Date().toISOString(); saveStateToStorage(); renderGrid(); renderHero(); } }
     function deleteItem(id) { if (confirm("آیا مایل به حذف این اثر هستید؟")) { state.items = state.items.filter(i => i.id !== id); if (state.selectedId === id) state.selectedId = null; saveStateToStorage(); renderGrid(); renderHero(); } }
     function updatePersonalReview(id, val) { const item = state.items.find(i => i.id === id); if (item) { item.personalReview = val; localStorage.setItem("cinetrack_ultimate_db", JSON.stringify(state.items)); } }
 
-    /* ============================================================
-       FILTERS, SORT & GRID
-    ============================================================ */
     function extractAndRenderGenres() {
       const select = document.getElementById("genreFilterSelect"); const cur = state.filters.genre; const genresSet = new Set();
       state.items.forEach(item => { if (item.genre && item.genre !== 'N/A' && item.genre.includes(',')) item.genre.split(',').forEach(g => genresSet.add(g.trim())); });
       select.innerHTML = '<option value="all">فیلتر ژانر (همه)</option>';
       genresSet.forEach(genre => { const opt = document.createElement("option"); opt.value = genre; opt.innerText = genre; if (genre === cur) opt.selected = true; select.appendChild(opt); });
     }
+
     function setFilter(key, value) {
       if (key === 'status' || key === 'type') state.filters.special = 'all';
       if (key === 'special') { state.filters.status = 'all'; state.filters.type = 'all'; }
@@ -887,12 +852,14 @@
     }
     function handleGenreChange(val) { state.filters.genre = val; renderGrid(); }
     function handleSortChange(val) { state.sortBy = val; renderGrid(); }
+    
     function setupFilterButtonsUI() {
       const btns = document.querySelectorAll("#filterContainer .filter-btn"); btns.forEach(b => b.classList.remove("active"));
       const map = { 'all-status': 0, 'Watching': 1, 'Planned': 2, 'Completed': 3, 'movie': 4, 'series': 5, 'highRated': 6, 'personalTop': 7 };
       let idx = 0; if (state.filters.special !== 'all') idx = map[state.filters.special] ?? 0; else if (state.filters.status !== 'all') idx = map[state.filters.status] ?? 0; else if (state.filters.type !== 'all') idx = map[state.filters.type] ?? 0;
       btns[idx]?.classList.add("active");
     }
+
     function getFilteredAndSortedItems() {
       let result = [...state.items];
       if (state.filters.status !== 'all') result = result.filter(i => i.status === state.filters.status);
@@ -909,6 +876,7 @@
       });
       return result;
     }
+
     function renderGrid() {
       const grid = document.getElementById("mainGrid"); const items = getFilteredAndSortedItems();
       if (items.length === 0) { grid.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:40px; color:var(--text-muted);">هیچ موردی یافت نشد.</div>`; return; }
@@ -934,9 +902,6 @@
       }).join('');
     }
 
-    /* ============================================================
-       DASHBOARD & WATCH NEXT
-    ============================================================ */
     function renderDashboard() {
       const dash = document.getElementById("dashboardStats");
       if (state.items.length === 0) { dash.innerHTML = `<div style="grid-column:1/-1; color:var(--text-muted); text-align:center; padding:20px;">کتابخانه خالی است.</div>`; return; }
@@ -962,16 +927,15 @@
       }).join('')}</div>`;
     }
 
-    /* ============================================================
-       BACKUP & MODALS
-    ============================================================ */
     function exportLibrary() { const a = document.createElement('a'); a.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state.items, null, 2)); a.download = `cinetrack_backup.json`; document.body.appendChild(a); a.click(); a.remove(); }
-    function importLibrary(event) { const r = new FileReader(); r.onload = e => { try { state.items = JSON.parse(e.target.result); saveStateToStorage(); state.selectedId = null; renderGrid(); renderHero(); alert("بازیابی انجام شد."); } catch { alert("خطا"); } }; r.readAsText(event.target.files[0]); }
+    function importLibrary(event) { const r = new FileReader(); r.onload = e => { try { state.items = JSON.parse(e.target.result); saveStateToStorage(); state.selectedId = null; renderGrid(); renderHero(); alert("بازیابی فایل با موفقیت انجام شد."); } catch { alert("خطا در بارگذاری فایل آرشیو."); } }; r.readAsText(event.target.files[0]); }
+    
     function openNotesModal() { document.getElementById("notesModal").classList.add("active"); }
     function saveGeneralNotes(val) { localStorage.setItem("cinetrack_general_notes", val); }
     function openSettingsModal() { document.getElementById("settingsModal").classList.add("active"); }
     function closeModal(id) { document.getElementById(id).classList.remove("active"); }
     function toggleCustomModelField(val) { document.getElementById("customModelGroup").style.display = val === "custom" ? "block" : "none"; }
+    
     function saveSettings() {
       const key = document.getElementById("openRouterKeyInput").value;
       const sel = document.getElementById("aiModelSelect").value;
@@ -983,6 +947,7 @@
       localStorage.setItem("cinetrack_external_url", extUrl);
       
       alert("تنظیمات ذخیره شد."); closeModal('settingsModal');
+      if (state.selectedId) renderHero();
     }
     window.onload = init;
   </script>
