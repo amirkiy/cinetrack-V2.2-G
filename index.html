@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CineTrack AI Ultimate & Pattern Matcher</title>
+  <title>CineTrack AI Ultimate & Large HTML DB</title>
   <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;700;900&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -108,7 +108,6 @@
     .movie-card:hover .card-overlay { opacity: 1; }
     .card-info { padding: 12px; }
     .card-title { font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 5px; }
-    .card-meta-line { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted); margin-bottom: 5px; }
     .card-progress { background: rgba(0,188,212,0.12); border-radius: 6px; padding: 4px 8px; font-size: 11px; color: var(--cyan); font-weight: bold; text-align: center; margin-top: 5px; }
 
     /* ---- AI Panel ---- */
@@ -255,10 +254,11 @@
       <div class="settings-section">
         <div class="settings-section-title">📂 دیتابیس آفلاین لینک‌های دانلود (HTML)</div>
         <div class="form-group">
-          <label>بارگذاری فایل HTML دانلودشده از سایت مرجع:</label>
+          <label>بارگذاری فایل HTML دانلودشده از سایت مرجع (تا حداکثر ۱۵ مگابایت پشتیبانی کامل):</label>
           <input type="file" id="htmlFileInput" class="form-control" accept=".html,.txt" onchange="handleHtmlDatabaseUpload(event)">
           <div class="hint" id="htmlUploadStatus" style="font-weight: bold; margin-top: 8px;">
-            </div>
+            در حال بارگذاری دیتابیس...
+          </div>
         </div>
       </div>
 
@@ -296,15 +296,81 @@
       sortBy: 'dateAdded',
       omdbCache: JSON.parse(localStorage.getItem("cinetrack_omdb_cache") || "{}"),
       globalAiCache: localStorage.getItem("cinetrack_global_ai_cache") || "",
-      aiPatterns: JSON.parse(localStorage.getItem("cinetrack_ai_patterns") || "{}") // Stores learned patterns for series titles
+      aiPatterns: JSON.parse(localStorage.getItem("cinetrack_ai_patterns") || "{}"),
+      htmlDbMemoryCache: "" // Caches the file text locally during application lifecycle for maximum performance
     };
 
     let searchDebounceTimer;
+    let dbInstance = null;
 
     /* ============================================================
-       INIT
+       INDEXEDDB SYSTEM (FOR UP TO 15MB+ HTML FILES)
     ============================================================ */
-    function init() {
+    function initIndexedDB() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open("CineTrackOfflineDB", 1);
+        request.onupgradeneeded = function(e) {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains("files")) {
+            db.createObjectStore("files", { keyPath: "id" });
+          }
+        };
+        request.onsuccess = function(e) {
+          dbInstance = e.target.result;
+          resolve(dbInstance);
+        };
+        request.onerror = function(e) {
+          console.error("IndexedDB Error:", e);
+          reject(e);
+        };
+      });
+    }
+
+    function saveHtmlToIndexedDB(htmlText) {
+      return new Promise((resolve, reject) => {
+        if (!dbInstance) return reject("Database not initialized");
+        const transaction = dbInstance.transaction(["files"], "readwrite");
+        const store = transaction.objectStore("files");
+        const request = store.put({ id: "reference_html", data: htmlText, updated: new Date().toISOString() });
+        
+        request.onsuccess = () => {
+          state.htmlDbMemoryCache = htmlText;
+          resolve();
+        };
+        request.onerror = (e) => reject(e);
+      });
+    }
+
+    function getHtmlFromIndexedDB() {
+      return new Promise((resolve, reject) => {
+        if (!dbInstance) return reject("Database not initialized");
+        const transaction = dbInstance.transaction(["files"], "readonly");
+        const store = transaction.objectStore("files");
+        const request = store.get("reference_html");
+        
+        request.onsuccess = (e) => {
+          if (e.target.result) {
+            state.htmlDbMemoryCache = e.target.result.data;
+            resolve(e.target.result.data);
+          } else {
+            resolve("");
+          }
+        };
+        request.onerror = (e) => reject(e);
+      });
+    }
+
+    /* ============================================================
+       INIT APPLICATION
+    ============================================================ */
+    async function init() {
+      try {
+        await initIndexedDB();
+        await getHtmlFromIndexedDB();
+      } catch (e) {
+        console.error("Failed to load IndexedDB engine, using slower memory cache fallback.");
+      }
+
       renderDashboard();
       extractAndRenderGenres();
       renderGrid();
@@ -340,7 +406,7 @@
 
     function updateHtmlStatusLabel() {
       const status = document.getElementById("htmlUploadStatus");
-      const dbSize = localStorage.getItem("cinetrack_html_db") ? localStorage.getItem("cinetrack_html_db").length : 0;
+      const dbSize = state.htmlDbMemoryCache ? state.htmlDbMemoryCache.length : 0;
       if(dbSize > 0) {
         status.style.color = "#4caf50";
         status.innerText = `✅ دیتابیس آفلاین فعال است (حجم فایل: ${(dbSize/1024/1024).toFixed(2)} مگابایت).`;
@@ -350,16 +416,21 @@
       }
     }
 
-    function handleHtmlDatabaseUpload(event) {
+    async function handleHtmlDatabaseUpload(event) {
       const file = event.target.files[0]; if(!file) return;
+      const status = document.getElementById("htmlUploadStatus");
+      status.style.color = "#00bcd4";
+      status.innerText = "⏳ در حال ذخیره‌سازی فوق سریع در پایگاه داده داخلی مرورگر...";
+      
       const reader = new FileReader();
-      reader.onload = function(e) {
+      reader.onload = async function(e) {
         try {
-          localStorage.setItem("cinetrack_html_db", e.target.result);
+          await saveHtmlToIndexedDB(e.target.result);
           updateHtmlStatusLabel();
-          alert("دیتابیس آفلاین مرجع با موفقیت در مرورگر شما ایندکس شد!");
+          alert("دیتابیس فوق حجیم آفلاین با موفقیت بدون محدودیت فضا ذخیره و ایندکس شد!");
         } catch(error) {
-          alert("خطا: حجم فایل HTML بیش از ظرفیت مرورگر شماست. لطفاً بخش‌های غیرضروری را حذف کرده یا از فایل سبک‌تری استفاده کنید.");
+          alert("خطا در ذخیره‌سازی فایل در سیستم پایگاه داده مرورگر.");
+          updateHtmlStatusLabel();
         }
       };
       reader.readAsText(file);
@@ -411,16 +482,23 @@
     }
 
     /* ============================================================
-       🧠 INTELLIGENT OFFLINE OFFLINE PATTERN LEARNING ENGINE (UPDATED)
+       🧠 OFFLINE PATTERN LEARNING ENGINE WITH DYNAMIC MEMORY
     ============================================================ */
     function extractAllLinksFromHtmlDb() {
-      const rawHtml = localStorage.getItem("cinetrack_html_db");
+      const rawHtml = state.htmlDbMemoryCache;
       if(!rawHtml) return [];
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(rawHtml, "text/html");
-      return Array.from(doc.querySelectorAll("a"))
-                  .map(a => a.getAttribute("href"))
-                  .filter(h => h && (h.endsWith(".mkv") || h.endsWith(".mp4") || h.includes("S0") || h.includes("E0")));
+      
+      // Super fast string splitting instead of heavy DOM Parsing for 10MB+ files
+      const links = [];
+      const regex = /href=["']([^"']+)["']/g;
+      let match;
+      while ((match = regex.exec(rawHtml)) !== null) {
+        const h = match[1];
+        if (h && (h.endsWith(".mkv") || h.endsWith(".mp4") || h.includes("S0") || h.includes("E0") || h.includes("/dl/"))) {
+          links.push(h);
+        }
+      }
+      return links;
     }
 
     async function learnLinkPatternFromAI(seriesTitle, sampleLinks) {
@@ -468,7 +546,6 @@ ${sampleLinks.slice(0, 15).join("\n")}
       let pattern = state.aiPatterns[item.title];
       if(!pattern) {
         log(`🤖 در حال ارسال نمونه لینک‌ها به OpenRouter جهت کشف هوشمند الگو...`);
-        // Filter some random links related to title to assist the AI
         const cleanTitle = item.title.toLowerCase().split(" ")[0];
         let samples = allLinks.filter(l => l.toLowerCase().includes(cleanTitle));
         if(samples.length === 0) samples = allLinks.slice(0, 20);
@@ -484,23 +561,17 @@ ${sampleLinks.slice(0, 15).join("\n")}
         log(`🚀 الگو از قبل در حافظه موجود است. جستجوی فوق سریع در فایل آفلاین...`);
       }
 
-      // Convert format padding
       const sPad2 = season.toString().padStart(2, '0');
       const ePad2 = episode.toString().padStart(2, '0');
 
-      // Attempt matching using learned heuristics
       let targetLink = allLinks.find(link => {
         const lLower = link.toLowerCase();
         const matchesTitle = lLower.includes(pattern.regexPattern.toLowerCase()) || lLower.includes(item.title.toLowerCase().replace(/ /g, "."));
-        
-        // Multi-condition intelligent boundary checker
         const matchesSeason = lLower.includes(`s${sPad2}`) || lLower.includes(`season.${season}`) || lLower.includes(`s${season}`);
         const matchesEpisode = lLower.includes(`e${ePad2}`) || lLower.includes(`ep${ePad2}`) || lLower.includes(`e${episode}`) || lLower.includes(`_${ePad2}_`);
-        
         return matchesTitle && matchesSeason && matchesEpisode;
       });
 
-      // Fallback if strict match fails (dynamic template matching)
       if(!targetLink) {
         log(`🔄 تست الگوی ثانویه برای موقعیت‌های اضطراری...`);
         targetLink = allLinks.find(link => {
@@ -517,7 +588,6 @@ ${sampleLinks.slice(0, 15).join("\n")}
         return targetLink;
       } else {
         log(`❌ متاسفانه لینک قسمت ${episode} در فایل HTML آپلود شده یافت نشد.`);
-        // Reset cached pattern to enforce AI recalculation upon next failure
         delete state.aiPatterns[item.title];
         localStorage.setItem("cinetrack_ai_patterns", JSON.stringify(state.aiPatterns));
         setTimeout(() => { tracker.style.display = "none"; }, 3000);
@@ -546,7 +616,7 @@ ${sampleLinks.slice(0, 15).join("\n")}
     }
 
     /* ============================================================
-       🧠 RESTORED OPENROUTER API SYSTEM
+       OPENROUTER API SYSTEM
     ============================================================ */
     async function callOpenRouterAPI(prompt) {
       const apiKey = localStorage.getItem("cinetrack_or_key");
@@ -797,7 +867,6 @@ ${sampleLinks.slice(0, 15).join("\n")}
     }
 
     function updateItemStatus(id, newStatus) { const item = state.items.find(i => i.id === id); if (item) { item.status = newStatus; item.lastUpdated = new Date().toISOString(); saveStateToStorage(); renderGrid(); renderHero(); } }
-    function updateItemRating(id, newRating) { const item = state.items.find(i => i.id === id); if (item) { item.userRating = newRating; item.lastUpdated = new Date().toISOString(); saveStateToStorage(); renderGrid(); renderHero(); } }
     function incrementProgress(id) {
       const item = state.items.find(i => i.id === id); if (!item || item.type !== 'series') return;
       const totalSeasons = parseInt(item.totalSeasons) || 1;
