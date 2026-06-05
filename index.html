@@ -278,7 +278,7 @@
       <div class="settings-section">
         <div class="settings-section-title">🌐 وضعیت ربات هوشمند لینک‌یاب</div>
         <div class="form-group">
-          <p class="hint">سیستم ارتقاء یافته است! این بخش اکنون از یک سیستم تطبیق عددی (Index Matching) برای مهار کدهای مارک‌دان هوش مصنوعی بهره می‌برد تا خطاها کاملاً برطرف شوند.</p>
+          <p class="hint">سیستم مجهز به الگوریتم نجات خودکار (Hybrid Matching) شد. حتی در صورت خطای هوش مصنوعی، کدهای محلی مرورگر بر اساس سیستم فیلتر کاراکترهای آلفانومریک لینک درست را استخراج می‌کنند.</p>
         </div>
       </div>
 
@@ -383,14 +383,17 @@
     }
 
     /* ============================================================
-       🧠 AI SMART CRAWLER & LINK FINDER (INDEX-BASED MATRIX)
+       🧠 HYBRID SMART CRAWLER ENGINE (ULTRA ACCURATE WITH HYBRID FALLBACK)
     ============================================================ */
     
-    // Fetch raw directory HTML and extract absolute links
+    function cleanStr(s) {
+       return s.toLowerCase().replace(/[^a-z0-9]/g, '');
+    }
+
     async function fetchHtmlLinks(url) {
         const proxyUrl = "https://api.allorigins.win/raw?url=" + encodeURIComponent(url) + "&_cb=" + Date.now();
         const res = await fetch(proxyUrl);
-        if (!res.ok) throw new Error("سرور واسط (AllOrigins) پاسخگو نیست.");
+        if (!res.ok) throw new Error("سرور واسط پاسخگو نیست.");
         const html = await res.text();
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, "text/html");
@@ -403,39 +406,37 @@
             });
     }
 
-    // High-precision index asker from OpenRouter (forces integer return)
     async function askAIForIndex(promptStr, maxIndex) {
       const apiKey = localStorage.getItem("cinetrack_or_key");
       const model = localStorage.getItem("cinetrack_or_model") || "deepseek/deepseek-chat";
-      
-      const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${apiKey.trim()}`,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({ 
-              model, 
-              messages: [
-                  { role: "system", content: "You are an extreme high-precision directory router. Your job is to read a numbered list of paths and return ONLY the exact index number (integer) of the option that fits the query best. Do not type any markdown, symbols, punctuation or explanation. Just return the pure digit." },
-                  { role: "user", content: promptStr }
-              ], 
-              temperature: 0 
-          })
-      });
-      const data = await res.json();
-      if(data.error) throw new Error(data.error.message);
-      
-      const cleanOutput = data.choices[0].message.content.trim();
-      const numMatch = cleanOutput.match(/\d+/);
-      if (numMatch) {
-          const idx = parseInt(numMatch[0], 10);
-          if (idx >= 0 && idx <= maxIndex) return idx;
-      }
+      if(!apiKey || apiKey.trim() === "") return -1;
+
+      try {
+          const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+              method: "POST",
+              headers: { "Authorization": `Bearer ${apiKey.trim()}`, "Content-Type": "application/json" },
+              body: JSON.stringify({ 
+                  model, 
+                  messages: [
+                      { role: "system", content: "You are an extreme high-precision directory router. Return ONLY the exact index number (integer) of the option that fits the query best. Do not type explanations. Just return the digit." },
+                      { role: "user", content: promptStr }
+                  ], 
+                  temperature: 0 
+              })
+          });
+          const data = await res.json();
+          if (data.choices && data.choices[0]) {
+              const cleanOutput = data.choices[0].message.content.trim();
+              const numMatch = cleanOutput.match(/\d+/);
+              if (numMatch) {
+                  const idx = parseInt(numMatch[0], 10);
+                  if (idx >= 0 && idx <= maxIndex) return idx;
+              }
+          }
+      } catch(e) { console.error("AI Error:", e); }
       return -1;
     }
 
-    // Core Intelligent AI Crawler Engine
     async function smartAILinkFinder(item, season, episode) {
         let tracker = document.getElementById("aiCrawlerTracker");
         if (!tracker) {
@@ -445,70 +446,58 @@
             if(details) details.appendChild(tracker);
         }
         tracker.style.display = "block";
-        const log = (msg) => { tracker.innerHTML = `🧠 <b>هوش مصنوعی در حال خزش:</b> ${msg}`; console.log(msg); };
+        const log = (msg) => { tracker.innerHTML = `🧠 <b>وضعیت ربات خزشگر:</b> ${msg}`; };
         
         let currentUrl = "https://dls2.film2cinemaha.top/DonyayeSerial/donyaye_serial_all_archive.html";
         
         try {
-            // -- STEP 1: Main Archive -> Match Series Folder
-            log(`اسکن کل آرشیو مرجع برای یافتن فولدر سریال "${item.title}"...`);
+            // -- STEP 1: Find Series Folder
+            log(`اسکن آرشیو برای سریال "${item.title}"...`);
             let links = await fetchHtmlLinks(currentUrl);
-            if (links.length === 0) throw new Error("لیست لینک‌ها خالی است.");
+            if (links.length === 0) throw new Error("آرشیو خالی برگشت.");
 
-            // Smart pre-filtering to keep context small and accurate
             const prefix = item.title.substring(0, 3).toLowerCase();
             let candidates = links.filter(l => l.toLowerCase().includes(prefix) || l.toLowerCase().includes(item.title.toLowerCase().split(' ')[0]));
-            if (candidates.length === 0) candidates = links; // fallback if highly unique naming
+            if (candidates.length === 0) candidates = links;
 
-            let prompt = `We need the directory folder for the TV show: "${item.title}".
-Analyze the list below and output ONLY the single index number of the item that corresponds to this series.
-Numbered List:
-${candidates.map((l, i) => `${i}: ${l}`).join('\n')}
-
-Output integer only:`;
-            
+            let prompt = `TV show: "${item.title}". Return ONLY the index number of the matching series folder.\n${candidates.map((l, i) => `${i}: ${l}`).join('\n')}`;
             let aiIndex = await askAIForIndex(prompt, candidates.length - 1);
-            // JS Safe Fallback if AI fails or returns invalid index
+            
+            // HYBRID MATCH FALLBACK (System Nejat)
             if (aiIndex === -1) {
-                aiIndex = candidates.findIndex(l => l.toLowerCase().includes(item.title.toLowerCase().replace(/[^a-z0-9]/gi, '.')));
+                const targetClean = cleanStr(item.title);
+                aiIndex = candidates.findIndex(l => cleanStr(decodeURIComponent(l)).includes(targetClean));
                 if(aiIndex === -1) aiIndex = 0; 
             }
             currentUrl = candidates[aiIndex];
             if(!currentUrl.endsWith('/')) currentUrl += '/';
 
-            // -- STEP 2: Series Directory -> Match Season Folder
-            log(`وارد فولدر اختصاصی سریال شدیم. در حال یافتن پوشه فصل ${season}...`);
+            // -- STEP 2: Find Season Folder
+            log(`یافتن پوشه فصل ${season}...`);
             links = await fetchHtmlLinks(currentUrl);
             
-            prompt = `We need the folder link for Season ${season}. Look for terms like S${season.toString().padStart(2,'0')}, Season.${season}, S${season}, etc.
-Select the single best item index from the list below.
-Numbered List:
-${links.map((l, i) => `${i}: ${l}`).join('\n')}
-
-Output integer only:`;
-            
+            prompt = `Find Season ${season} folder index.\n${links.map((l, i) => `${i}: ${l}`).join('\n')}`;
             aiIndex = await askAIForIndex(prompt, links.length - 1);
             if (aiIndex === -1) {
-                aiIndex = links.findIndex(l => l.toLowerCase().includes(`s${season.toString().padStart(2,'0')}`) || l.toLowerCase().includes(`season.${season}`) || l.toLowerCase().includes(`season ${season}`));
+                const sPad = "s" + season.toString().padStart(2, '0');
+                const sText = "season" + season;
+                aiIndex = links.findIndex(l => {
+                    const cl = cleanStr(decodeURIComponent(l));
+                    return cl.includes(sPad) || cl.includes(sText) || cl.includes("season." + season);
+                });
                 if(aiIndex === -1) aiIndex = 0;
             }
             currentUrl = links[aiIndex];
             if(!currentUrl.endsWith('/')) currentUrl += '/';
 
-            // -- STEP 3: Handle Quality Subfolders if present
-            log(`وارد فولدر فصل ${season} شدیم. بررسی ساختار کیفیت ویدیوها...`);
+            // -- STEP 3: Quality Check
+            log(`بررسی تفکیک کیفیت‌ها در فصل ${season}...`);
             links = await fetchHtmlLinks(currentUrl);
             const hasDirectVideos = links.some(l => l.toLowerCase().endsWith('.mkv') || l.toLowerCase().endsWith('.mp4'));
             
             if (!hasDirectVideos) {
-                log(`فولدرهای تفکیک کیفیت یافت شدند. فیلتر برای استخراج بالاترین کیفیت ممکن (1080p)...`);
-                prompt = `We want the HIGHEST available video quality directory. Prioritize 1080p, Web-DL, x265, 10bit over 720p or 480p.
-Select the index number of the best quality option.
-Numbered List:
-${links.map((l, i) => `${i}: ${l}`).join('\n')}
-
-Output integer only:`;
-                
+                log(`فیلتر برای بالاترین کیفیت موجود (ترجیحاً 1080p)...`);
+                prompt = `Select the index of the HIGHEST video quality directory (1080p > 720p > 480p).\n${links.map((l, i) => `${i}: ${l}`).join('\n')}`;
                 aiIndex = await askAIForIndex(prompt, links.length - 1);
                 if (aiIndex === -1) {
                     aiIndex = links.findIndex(l => l.toLowerCase().includes('1080p') || l.toLowerCase().includes('1080'));
@@ -517,52 +506,38 @@ Output integer only:`;
                 }
                 currentUrl = links[aiIndex];
                 if(!currentUrl.endsWith('/')) currentUrl += '/';
-                
-                log(`وارد پوشه بالاترین کیفیت شدیم. واکشی فایل‌های ویدیو...`);
                 links = await fetchHtmlLinks(currentUrl);
             }
 
-            // -- STEP 4: Direct Episode File Selection
-            log(`در حال مکان‌یابی دقیق فایل قسمت ${episode} از بین کل آرشیو...`);
-            prompt = `We need the direct video download file (.mkv or .mp4) for Episode ${episode}. Look for exact episode tags like E${episode.toString().padStart(2,'0')}, Ep.${episode}, Ep${episode}, Episode.${episode}, or isolated number ${episode}.
-Select the single correct item index from the list.
-Numbered List:
-${links.map((l, i) => `${i}: ${l}`).join('\n')}
-
-Output integer only:`;
-            
+            // -- STEP 4: Episode File Match
+            log(`استخراج لینک مستقیم فایل قسمت ${episode}...`);
+            prompt = `Select index for Episode ${episode} direct video file (.mkv/.mp4).\n${links.map((l, i) => `${i}: ${l}`).join('\n')}`;
             aiIndex = await askAIForIndex(prompt, links.length - 1);
             if (aiIndex === -1) {
-                // Precision regex fallback for episode number
-                const epToken1 = `e${episode.toString().padStart(2,'0')}`;
-                const epToken2 = `ep.${episode}`;
-                aiIndex = links.findIndex(l => l.toLowerCase().includes(epToken1) || l.toLowerCase().includes(epToken2));
+                const epPad = "e" + episode.toString().padStart(2, '0');
+                const epText = "ep" + episode;
+                aiIndex = links.findIndex(l => {
+                    const cl = cleanStr(decodeURIComponent(l));
+                    return cl.includes(epPad) || cl.includes(epText) || cl.includes("episode." + episode) || cl.includes("." + episode + ".");
+                });
                 if(aiIndex === -1) aiIndex = 0;
             }
             
             let finalVideoUrl = links[aiIndex];
-            log(`✅ فایل با موفقیت مکان‌یابی شد! انتقال به لینک مستقیم دانلود/پخش...`);
-            setTimeout(() => { tracker.style.display = "none"; }, 2000);
+            log(`✅ موفقیت‌آمیز! لینک استخراج شد.`);
+            setTimeout(() => { tracker.style.display = "none"; }, 1500);
             return finalVideoUrl;
 
         } catch (e) {
-            log(`❌ خطا در سیستم خزشگر هوشمند: ${e.message}`);
-            setTimeout(() => { tracker.style.display = "none"; }, 5000);
+            log(`❌ خطا در کراولر: ${e.message}`);
+            setTimeout(() => { tracker.style.display = "none"; }, 4000);
             return null;
         }
     }
 
-    // Stream/Download Trigger for all 3 control buttons
     async function openEpisodeLink(id, direction) {
       const item = state.items.find(i => i.id === id);
       if (!item) return;
-
-      const apiKey = localStorage.getItem("cinetrack_or_key");
-      if (!apiKey?.trim()) {
-        alert("برای عملکرد خزشگر هوشمند، لطفاً ابتدا API Key خود را در بخش تنظیمات وارد کنید.");
-        openSettingsModal();
-        return;
-      }
 
       let targetSeason = item.season;
       let targetEpisode = item.episode;
@@ -570,7 +545,7 @@ Output integer only:`;
       if (direction === 'next') {
         const nextInfo = getNextEpisodeInfo(item);
         if (!nextInfo) {
-          alert(`بر اساس دیتای موجود، سریال "${item.title}" به پایان رسیده است.`);
+          alert(`بر اساس دیتای OMDb، سریال "${item.title}" به پایان رسیده است.`);
           return;
         }
         targetSeason = nextInfo.season;
@@ -591,18 +566,16 @@ Output integer only:`;
         }
       }
 
-      // Execute index-based smart search
       const directUrl = await smartAILinkFinder(item, targetSeason, targetEpisode);
       
       if (directUrl) {
           window.open(directUrl, "_blank");
       } else {
-          if(confirm("مغز هوش مصنوعی نتوانست لینک مستقیم را فیلتر کند. آیا مایلید آرشیو مرجع را به صورت دستی باز کنید؟")) {
+          if(confirm("سیستم نتوانست لینک مستقیم این قسمت را استخراج کند. آیا مایلید آرشیو مرجع را به صورت دستی باز کنید؟")) {
              window.open("https://dls2.film2cinemaha.top/DonyayeSerial/donyaye_serial_all_archive.html", "_blank");
           }
       }
     }
-
 
     /* ============================================================
        SEARCH (OMDb)
@@ -742,7 +715,6 @@ Output integer only:`;
         progressHtml = `<div class="progress-box"><div class="progress-label">${labelHtml}</div><div class="progress-container"><div class="progress-bar" style="width:${percent}%;"></div></div></div>`;
       }
 
-      // Triple intelligent control links for Series
       const streamBtns = isSeries ? `
         <button class="btn btn-prev" style="padding:6px 12px; font-size:12px;" onclick="openEpisodeLink('${item.id}', 'prev')">⏮️ قسمت قبلی</button>
         <button class="btn btn-watch" style="padding:6px 12px; font-size:12px;" onclick="openEpisodeLink('${item.id}', 'current')">▶️ پخش قسمت فعلی</button>
