@@ -257,11 +257,11 @@
       <div class="settings-section">
         <div class="settings-section-title">🤖 موتور هوش مصنوعی OpenRouter</div>
         <div class="form-group">
-          <label>API Key (اختیاری - برای تحلیل سلیقه):</label>
+          <label>API Key (اجباری برای فعال شدن تحلیل‌ها):</label>
           <input type="password" id="openRouterKeyInput" class="form-control" placeholder="sk-or-v1-...">
         </div>
         <div class="form-group">
-          <label>مدل AI (پیشنهاد: DeepSeek یا Qwen):</label>
+          <label>مدل AI:</label>
           <select id="aiModelSelect" class="form-control" onchange="toggleCustomModelField(this.value)">
             <option value="deepseek/deepseek-chat">DeepSeek Chat (دقیق و اقتصادی)</option>
             <option value="qwen/qwen-turbo">Qwen Turbo</option>
@@ -276,9 +276,11 @@
       </div>
 
       <div class="settings-section">
-        <div class="settings-section-title">🌐 وضعیت ربات هیبریدی هوشمند</div>
+        <div class="settings-section-title">🌐 تنظیمات آرشیو دانلود سریال‌ها</div>
         <div class="form-group">
-          <p class="hint">سیستم به الگوریتم پیشرفته اولویت محلی (Local-First Priority Matcher) و سیستم پروکسی دوگانه مجهز شد. اکنون لینک‌یابی فیلم و سریال‌ها به صورت آنی، بدون خطا و کاملاً مستقل انجام می‌شود.</p>
+          <label>آدرس آرشیو مرجع (Base URL):</label>
+          <input type="text" id="externalUrlInput" class="form-control" placeholder="https://...">
+          <p class="hint">لینک دایرکتوری مادر یا همان صفحه اصلی لیست فولدرهای سریال را در اینجا قرار دهید.</p>
         </div>
       </div>
 
@@ -311,6 +313,8 @@
       renderWatchNext();
 
       document.getElementById("openRouterKeyInput").value = localStorage.getItem("cinetrack_or_key") || "";
+      document.getElementById("externalUrlInput").value = localStorage.getItem("cinetrack_external_url") || "https://dls2.film2cinemaha.top/DonyayeSerial/donyaye_serial_all_archive.html";
+      
       const savedModel = localStorage.getItem("cinetrack_or_model") || "deepseek/deepseek-chat";
       if (['deepseek/deepseek-chat', 'qwen/qwen-turbo', 'google/gemma-2-9b-it'].includes(savedModel)) {
         document.getElementById("aiModelSelect").value = savedModel;
@@ -381,9 +385,8 @@
     }
 
     /* ============================================================
-       🧠 HYBRID SMART CRAWLER ENGINE (ULTRA ACCURATE & ULTRA FAST)
+       🧠 HYBRID SMART CRAWLER ENGINE (RE-BUILT & ULTRASONIC)
     ============================================================ */
-    
     function cleanStringForMatching(str) {
       return str.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
     }
@@ -391,54 +394,51 @@
     async function fetchHtmlLinks(url) {
         const proxies = [
             (u) => "https://api.allorigins.win/raw?url=" + encodeURIComponent(u) + "&_cb=" + Date.now(),
-            (u) => "https://corsproxy.io/?" + encodeURIComponent(u)
+            (u) => "https://api.codetabs.com/v1/proxy/?url=" + encodeURIComponent(u)
         ];
         
-        let html = "";
-        let success = false;
-        
+        let html = ""; let success = false;
         for (let proxyFn of proxies) {
             try {
                 const proxyUrl = proxyFn(url);
                 const res = await fetch(proxyUrl);
-                if (res.ok) {
-                    html = await res.text();
-                    success = true;
-                    break;
-                }
-            } catch(e) { console.warn("Proxy switch triggered..."); }
+                if (res.ok) { html = await res.text(); success = true; break; }
+            } catch(e) { console.warn("Proxy swap triggered..."); }
         }
-        
         if (!success) throw new Error("سرورهای پروکسی پاسخگو نیستند. اینترنت خود را چک کنید.");
         
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, "text/html");
-        
         return Array.from(doc.querySelectorAll("a"))
             .map(a => a.getAttribute("href"))
             .filter(h => h && !h.startsWith("?") && !h.includes("../") && h !== "/" && !h.toLowerCase().includes("sorting"))
-            .map(h => {
-                try { return new URL(h, url).href; } catch(e) { return h; }
-            });
+            .map(h => { try { return new URL(h, url).href; } catch(e) { return h; } });
     }
 
     function findBestLocalMatch(links, target, type, extraParam = null) {
         if (!links || links.length === 0) return -1;
         
+        const normalizedLinks = links.map(l => {
+            const parts = l.replace(/\/$/, '').split('/');
+            return decodeURIComponent(parts[parts.length - 1]).toLowerCase();
+        });
+
         if (type === 'series') {
             const targetClean = cleanStringForMatching(target);
-            const targetWords = targetClean.split(' ');
-            let bestIdx = -1;
-            let maxMatches = 0;
+            const targetWords = targetClean.split(' ').filter(w => w.length > 1);
+            let bestIdx = -1; let maxMatches = 0;
             
-            for (let i = 0; i < links.length; i++) {
-                const segment = decodeURIComponent(links[i].replace(/\/$/, '').split('/').pop()).toLowerCase().replace(/[^a-z0-9\s]/g, ' ');
+            for (let i = 0; i < normalizedLinks.length; i++) {
+                const segment = normalizedLinks[i].replace(/[^a-z0-9\s]/g, ' ');
                 let matchCount = 0;
                 targetWords.forEach(word => { if (segment.includes(word)) matchCount++; });
-                
-                if (matchCount > maxMatches && matchCount >= Math.min(2, targetWords.length)) {
-                    maxMatches = matchCount;
-                    bestIdx = i;
+                if (matchCount > maxMatches) { maxMatches = matchCount; bestIdx = i; }
+            }
+            if (bestIdx === -1) {
+                const compactTarget = targetClean.replace(/\s+/g, '');
+                for (let i = 0; i < normalizedLinks.length; i++) {
+                    const compactSeg = normalizedLinks[i].replace(/[^a-z0-9]/g, '');
+                    if (compactSeg.includes(compactTarget) || compactTarget.includes(compactSeg)) return i;
                 }
             }
             return bestIdx;
@@ -447,11 +447,13 @@
         if (type === 'season') {
             const sNum = parseInt(extraParam);
             const sPad = sNum.toString().padStart(2, '0');
-            for (let i = 0; i < links.length; i++) {
-                const segment = decodeURIComponent(links[i]).toLowerCase();
-                if (segment.includes(`s${sPad}`) || segment.includes(`season ${sNum}`) || segment.includes(`season.${sNum}`) || segment.includes(`season_${sPad}`) || segment.includes(`season${sNum}`) || segment.includes(`s${sNum}`)) {
-                    return i;
-                }
+            for (let i = 0; i < normalizedLinks.length; i++) {
+                const seg = normalizedLinks[i];
+                if (seg.includes(`s${sPad}`) || seg.includes(`season${sNum}`) || seg.includes(`season.${sNum}`) || seg.includes(`season_${sPad}`) || seg.includes(`season ${sNum}`) || seg.includes(`s${sNum}`)) return i;
+            }
+            for (let i = 0; i < normalizedLinks.length; i++) {
+                const nums = normalizedLinks[i].match(/\d+/g);
+                if (nums && nums.map(Number).includes(sNum)) return i;
             }
             return -1;
         }
@@ -459,8 +461,8 @@
         if (type === 'quality') {
             const qualities = ['1080', '720', '480'];
             for (let q of qualities) {
-                for (let i = 0; i < links.length; i++) {
-                    if (links[i].toLowerCase().includes(q)) return i;
+                for (let i = 0; i < normalizedLinks.length; i++) {
+                    if (normalizedLinks[i].includes(q)) return i;
                 }
             }
             return -1;
@@ -469,15 +471,14 @@
         if (type === 'episode') {
             const epNum = parseInt(extraParam);
             const epPad = epNum.toString().padStart(2, '0');
-            for (let i = 0; i < links.length; i++) {
-                const segment = decodeURIComponent(links[i]).toLowerCase().split('/').pop();
-                if (segment.includes(`e${epPad}`) || segment.includes(`ep${epPad}`) || segment.includes(`e${epNum}`)) return i;
-                if (segment.includes(`.${epPad}.`) || segment.includes(`_${epPad}_`) || segment.includes(`-${epPad}`) || segment.includes(`.${epNum}.`)) return i;
+            for (let i = 0; i < normalizedLinks.length; i++) {
+                const seg = normalizedLinks[i];
+                if (seg.includes(`e${epPad}`) || seg.includes(`ep${epPad}`) || seg.includes(`e${epNum}`) || seg.includes(`ep${epNum}`)) return i;
             }
-            for (let i = 0; i < links.length; i++) {
-                const segment = decodeURIComponent(links[i]).toLowerCase().split('/').pop();
-                const numMatch = segment.match(/\d+/g);
-                if (numMatch && numMatch.includes(epNum.toString()) && !segment.includes('1080') && !segment.includes('720')) return i;
+            for (let i = 0; i < normalizedLinks.length; i++) {
+                const seg = normalizedLinks[i].replace('1080','').replace('720','').replace('480','');
+                const nums = seg.match(/\d+/g);
+                if (nums && nums.map(Number).includes(epNum)) return i;
             }
             return -1;
         }
@@ -488,148 +489,162 @@
       const apiKey = localStorage.getItem("cinetrack_or_key");
       const model = localStorage.getItem("cinetrack_or_model") || "deepseek/deepseek-chat";
       if(!apiKey || apiKey.trim() === "") return -1;
-
       try {
           const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
               method: "POST",
               headers: { "Authorization": `Bearer ${apiKey.trim()}`, "Content-Type": "application/json" },
-              body: JSON.stringify({ 
-                  model, 
-                  messages: [
-                      { role: "system", content: "You are a directory router. Return ONLY the exact index number of the option that fits best. No explanation." },
-                      { role: "user", content: promptStr }
-                  ], 
-                  temperature: 0 
-              })
+              body: JSON.stringify({ model, messages: [{ role: "user", content: promptStr + "\nReturn ONLY the number index." }], temperature: 0 })
           });
           const data = await res.json();
           if (data.choices && data.choices[0]) {
               const numMatch = data.choices[0].message.content.trim().match(/\d+/);
-              if (numMatch) {
-                  const idx = parseInt(numMatch[0], 10);
-                  if (idx >= 0 && idx <= maxIndex) return idx;
-              }
+              if (numMatch) { const idx = parseInt(numMatch[0], 10); if (idx >= 0 && idx <= maxIndex) return idx; }
           }
-      } catch(e) { console.error("AI Routing failed:", e); }
+      } catch(e) {}
       return -1;
     }
 
     async function smartAILinkFinder(item, season, episode) {
         let tracker = document.getElementById("aiCrawlerTracker");
         if (!tracker) {
-            tracker = document.createElement("div");
-            tracker.id = "aiCrawlerTracker";
-            const details = document.querySelector(".hero-details");
-            if(details) details.appendChild(tracker);
+            tracker = document.createElement("div"); tracker.id = "aiCrawlerTracker";
+            const details = document.querySelector(".hero-details"); if(details) details.appendChild(tracker);
         }
         tracker.style.display = "block";
-        const log = (msg) => { tracker.innerHTML = `⚡ <b>موتور هیبریدی:</b> ${msg}`; };
+        const log = (msg) => { tracker.innerHTML = `⚡ <b>موتور هوشمند:</b> ${msg}`; };
         
-        let currentUrl = "https://dls2.film2cinemaha.top/DonyayeSerial/donyaye_serial_all_archive.html";
+        let currentUrl = localStorage.getItem("cinetrack_external_url") || "https://dls2.film2cinemaha.top/DonyayeSerial/donyaye_serial_all_archive.html";
         
         try {
-            // -- STEP 1: Find Series Folder
-            log(`جستجوی سریع پوشه سریال "${item.title}"...`);
+            log(`اسکن سریع فولدر اصلی برای یافتن سری کارتون/سریال...`);
             let links = await fetchHtmlLinks(currentUrl);
-            if (links.length === 0) throw new Error("آرشیو خالی است.");
+            if (links.length === 0) throw new Error("آرشیو خالی است یا ساختار تغییر کرده.");
 
             let matchIndex = findBestLocalMatch(links, item.title, 'series');
             if (matchIndex === -1) {
-                log(`درخواست کمک هوشمند از هوش مصنوعی برای پیدا کردن نام پوشه...`);
+                log(`درخواست موقعیت‌یابی نام فولدر از هوش مصنوعی نجات...`);
                 const prompt = `TV show: "${item.title}". Return index.\n${links.slice(0, 100).map((l, i) => `${i}: ${l}`).join('\n')}`;
-                matchIndex = await askAIForIndex(prompt, links.length - 1);
-                if (matchIndex === -1) matchIndex = 0;
+                matchIndex = await askAIForIndex(prompt, links.length - 1); if (matchIndex === -1) matchIndex = 0;
             }
-            currentUrl = links[matchIndex];
-            if(!currentUrl.endsWith('/')) currentUrl += '/';
+            currentUrl = links[matchIndex]; if(!currentUrl.endsWith('/')) currentUrl += '/';
 
-            // -- STEP 2: Find Season Folder
-            log(`آنالیز ساختار و یافتن فصل ${season}...`);
+            log(`ورود به پوشه اثر و یافتن فصل ${season}...`);
             links = await fetchHtmlLinks(currentUrl);
             matchIndex = findBestLocalMatch(links, null, 'season', season);
             if (matchIndex === -1) {
                 const prompt = `Find Season ${season} index.\n${links.map((l, i) => `${i}: ${l}`).join('\n')}`;
-                matchIndex = await askAIForIndex(prompt, links.length - 1);
-                if (matchIndex === -1) matchIndex = 0;
+                matchIndex = await askAIForIndex(prompt, links.length - 1); if (matchIndex === -1) matchIndex = 0;
             }
-            currentUrl = links[matchIndex];
-            if(!currentUrl.endsWith('/')) currentUrl += '/';
+            currentUrl = links[matchIndex]; if(!currentUrl.endsWith('/')) currentUrl += '/';
 
-            // -- STEP 3: Quality Subfolder Check
-            log(`بررسی تفکیک کیفیت‌ها در فصل کنونی...`);
+            log(`فیلتر قسمت و استخراج کیفیت نهایی...`);
             links = await fetchHtmlLinks(currentUrl);
             const hasDirectVideos = links.some(l => l.toLowerCase().endsWith('.mkv') || l.toLowerCase().endsWith('.mp4'));
             
             if (!hasDirectVideos) {
-                log(`فیلتر بهترین کیفیت (1080p / 720p)...`);
-                matchIndex = findBestLocalMatch(links, null, 'quality');
-                if (matchIndex === -1) matchIndex = 0;
-                currentUrl = links[matchIndex];
-                if(!currentUrl.endsWith('/')) currentUrl += '/';
+                matchIndex = findBestLocalMatch(links, null, 'quality'); if (matchIndex === -1) matchIndex = 0;
+                currentUrl = links[matchIndex]; if(!currentUrl.endsWith('/')) currentUrl += '/';
                 links = await fetchHtmlLinks(currentUrl);
             }
 
-            // -- STEP 4: Episode File Match
-            log(`استخراج آدرس مستقیم دانلود قسمت ${episode}...`);
+            log(`یافتن فایل ویدیویی مستقیم قسمت ${episode}...`);
             matchIndex = findBestLocalMatch(links, null, 'episode', episode);
             if (matchIndex === -1) {
-                const prompt = `Select index for Episode ${episode} direct video file.\n${links.map((l, i) => `${i}: ${l}`).join('\n')}`;
-                matchIndex = await askAIForIndex(prompt, links.length - 1);
-                if (matchIndex === -1) matchIndex = 0;
+                const prompt = `Select index for Episode ${episode} direct file.\n${links.map((l, i) => `${i}: ${l}`).join('\n')}`;
+                matchIndex = await askAIForIndex(prompt, links.length - 1); if (matchIndex === -1) matchIndex = 0;
             }
             
             let finalVideoUrl = links[matchIndex];
-            log(`✅ موفقیت‌آمیز! لینک با موفقیت فیلتر شد.`);
+            log(`✅ با موفقیت پیدا شد! آماده باز کردن...`);
             setTimeout(() => { tracker.style.display = "none"; }, 1500);
             return finalVideoUrl;
-
         } catch (e) {
-            log(`❌ خطا: ${e.message}`);
+            log(`❌ خطا در استخراج لینک: ${e.message}`);
             setTimeout(() => { tracker.style.display = "none"; }, 4000);
             return null;
         }
     }
 
     async function openEpisodeLink(id, direction) {
-      const item = state.items.find(i => i.id === id);
-      if (!item) return;
-
-      let targetSeason = item.season;
-      let targetEpisode = item.episode;
+      const item = state.items.find(i => i.id === id); if (!item) return;
+      let targetSeason = item.season; let targetEpisode = item.episode;
 
       if (direction === 'next') {
         const nextInfo = getNextEpisodeInfo(item);
-        if (!nextInfo) {
-          alert(`بر اساس دیتای معتبر جهانی، سریال "${item.title}" به پایان رسیده است.`);
-          return;
-        }
-        targetSeason = nextInfo.season;
-        targetEpisode = nextInfo.episode;
+        if (!nextInfo) { alert("این قسمت آخرین اپیزود دیتابیس جهانی است."); return; }
+        targetSeason = nextInfo.season; targetEpisode = nextInfo.episode;
       } else if (direction === 'prev') {
-        if (item.episode > 1) {
-            targetEpisode = item.episode - 1;
-        } else if (item.season > 1) {
+        if (item.episode > 1) { targetEpisode = item.episode - 1; }
+        else if (item.season > 1) {
             targetSeason = item.season - 1;
-            if (item.seasonData && item.seasonData[targetSeason]) {
-                targetEpisode = parseInt(item.seasonData[targetSeason]) || 1;
-            } else {
-                targetEpisode = 1; 
-            }
-        } else {
-            alert("شما در فصل ۱ قسمت ۱ هستید.");
-            return;
-        }
+            targetEpisode = (item.seasonData && item.seasonData[targetSeason]) ? parseInt(item.seasonData[targetSeason]) : 1;
+        } else { alert("شما در قسمت اول هستید."); return; }
       }
 
       const directUrl = await smartAILinkFinder(item, targetSeason, targetEpisode);
-      
-      if (directUrl) {
-          window.open(directUrl, "_blank");
-      } else {
-          if(confirm("سیستم نتوانست لینک مستقیم این قسمت را استخراج کند. آیا مایلید آرشیو مرجع را به صورت دستی باز کنید؟")) {
-             window.open("https://dls2.film2cinemaha.top/DonyayeSerial/donyaye_serial_all_archive.html", "_blank");
+      if (directUrl) window.open(directUrl, "_blank");
+      else {
+          if(confirm("مغز هوش مصنوعی نتوانست لینک مستقیم را فیلتر کند. آیا مایلید آرشیو مرجع را به صورت دستی باز کنید؟")) {
+             window.open(localStorage.getItem("cinetrack_external_url") || "https://dls2.film2cinemaha.top/DonyayeSerial/donyaye_serial_all_archive.html", "_blank");
           }
       }
+    }
+
+    /* ============================================================
+       🧠 PURE RELIABLE AI API SYSTEM (RESTORED TO PREVIOUS PERFECT STATE)
+    ============================================================ */
+    async function callOpenRouterAPI(prompt) {
+      const apiKey = localStorage.getItem("cinetrack_or_key");
+      const model = localStorage.getItem("cinetrack_or_model") || "deepseek/deepseek-chat";
+      if (!apiKey || apiKey.trim() === "") {
+        throw new Error("کلید اختصاصی OpenRouter شما یافت نشد. لطفاً در بخش تنظیمات بالا آن را وارد کنید.");
+      }
+      
+      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey.trim()}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: model,
+          messages: [{ role: "user", content: prompt }]
+        })
+      });
+      
+      if (!response.ok) {
+        const errJson = await response.json().catch(() => ({}));
+        throw new Error(errJson?.error?.message || `خطای سرور OpenRouter کد (${response.status})`);
+      }
+      
+      const data = await response.json();
+      if (data && data.choices && data.choices[0] && data.choices[0].message) {
+        return data.choices[0].message.content.trim();
+      }
+      throw new Error("پاسخ نامعتبر دریافت شد.");
+    }
+
+    async function askAIBoutMovie(id, forceRefresh = false) {
+      const item = state.items.find(i => i.id === id); if (!item) return;
+      const noteBox = document.getElementById("aiHeroNoteBox"); const noteContent = document.getElementById("aiHeroNoteContent");
+      noteBox.style.display = "block"; if (item.aiNotes && !forceRefresh) { noteContent.innerHTML = item.aiNotes; return; }
+      noteContent.innerText = "در حال تحلیل اثر توسط هوش مصنوعی...";
+      try {
+        const res = await callOpenRouterAPI(`پاسخ را تماماً به زبان فارسی، کوتاه، شیک و بولت‌پوینت بنویس.\nاثر مورد نظر: ${item.title} | ژانر: ${item.genre} | امتیاز کاربر به فیلم: ${item.userRating}/5\n۱. نقد و نظر خیلی کوتاه هوش مصنوعی\n۲. نقاط قوت برجسته\n۳. معرفی ۲ اثر بسیار مشابه برای تماشا`);
+        item.aiNotes = res; localStorage.setItem("cinetrack_ultimate_db", JSON.stringify(state.items)); noteContent.innerHTML = res;
+      } catch (err) { noteContent.innerHTML = `❌ خطا: ${err.message}`; }
+    }
+
+    async function generateGlobalAIAnalysis(forceRefresh = false) {
+      const box = document.getElementById("globalAiResponse");
+      if (state.items.length === 0) { box.innerText = "آرشیو شما در حال حاضر خالی است."; return; }
+      if (state.globalAiCache && !forceRefresh) { box.innerHTML = state.globalAiCache; return; }
+      box.innerText = "در حال پردازش کل آرشیو و تحلیل سلیقه شما توسط هوش مصنوعی...";
+      try {
+        const lib = state.items.map(i => `${i.title} | نوع: ${i.type} | ژانر: ${i.genre} | امتیاز من:${i.userRating}`).join('\n');
+        const res = await callOpenRouterAPI(`تو یک کارشناس سینمایی ارشد هستی. آرشیو فیلم و سریال‌های من را تحلیل کن و یک متن فارسی جذاب بدون استفاده از علامت‌های نقل قول یا کاراکترهای اضافی تولید کن:\n${lib}\n\nبخش‌ها:\n۱. شناسنامه و تحلیل سلیقه شخصی من بر اساس ژانرها\n۲. پیشنهاد ۲ فیلم سینمایی جدید خارج از لیست بالا\n۳. پیشنهاد ۲ سریال جدید خارج از لیست بالا`);
+        state.globalAiCache = res; localStorage.setItem("cinetrack_global_ai_cache", res); box.innerHTML = res; document.getElementById("regenGlobalAiBtn").style.display = "inline-flex";
+      } catch (err) { box.innerText = `❌ خطا در تحلیل: ${err.message}`; }
     }
 
     /* ============================================================
@@ -728,8 +743,7 @@
     function setStarsValue(rating) { const stars = document.querySelectorAll("#modalStars span"); document.getElementById("formRating").value = rating; stars.forEach((s, i) => i < rating ? s.classList.add("active") : s.classList.remove("active")); }
     function saveNewItemToDB() {
       const imdbID = document.getElementById("formImdbID").value;
-      const rawData = state.omdbCache[imdbID];
-      if (!rawData) return;
+      const rawData = state.omdbCache[imdbID]; if (!rawData) return;
       if (state.items.some(i => i.id === imdbID)) { alert("این عنوان از قبل در آرشیو شما وجود دارد."); closeModal('addModal'); return; }
       const status = document.getElementById("formStatus").value;
       const userRating = parseInt(document.getElementById("formRating").value) || 0;
@@ -754,10 +768,8 @@
       const isSeries = item.type === "series";
       let progressHtml = "";
       if (isSeries) {
-        const totalWatched = getTotalWatchedEpisodes(item);
-        const totalEps = getTotalEpisodes(item);
-        const totalSeasons = parseInt(item.totalSeasons) || 1;
-        const hasData = totalEps !== null && totalEps > 0;
+        const totalWatched = getTotalWatchedEpisodes(item); const totalEps = getTotalEpisodes(item);
+        const totalSeasons = parseInt(item.totalSeasons) || 1; const hasData = totalEps !== null && totalEps > 0;
         const isLoadingData = !item.seasonData || Object.keys(item.seasonData).length === 0;
         let percent, labelHtml;
         if (hasData) {
@@ -951,44 +963,6 @@
     }
 
     /* ============================================================
-       AI ANALYSIS ENGINE
-    ============================================================ */
-    async function callOpenRouterAPI(prompt) {
-      const apiKey = localStorage.getItem("cinetrack_or_key"); const model = localStorage.getItem("cinetrack_or_model") || "deepseek/deepseek-chat";
-      if (!apiKey?.trim()) throw new Error("KEY_MISSING");
-      const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST", headers: { "Authorization": `Bearer ${apiKey.trim()}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ model, messages: [{ role: "user", content: prompt }], temperature: 0.7 })
-      });
-      const data = await res.json();
-      if (data?.choices?.[0]?.message?.content) return data.choices[0].message.content.trim();
-      throw new Error("SERVER_ERROR");
-    }
-
-    async function askAIBoutMovie(id, forceRefresh = false) {
-      const item = state.items.find(i => i.id === id); if (!item) return;
-      const noteBox = document.getElementById("aiHeroNoteBox"); const noteContent = document.getElementById("aiHeroNoteContent");
-      noteBox.style.display = "block"; if (item.aiNotes && !forceRefresh) { noteContent.innerText = item.aiNotes; return; }
-      noteContent.innerText = "در حال تحلیل اثر...";
-      try {
-        const res = await callOpenRouterAPI(`System: پاسخ فارسی، کوتاه و Bullet-point.\nاثر: ${item.title} | ژانر: ${item.genre} | نظر کاربر: ${item.userRating}/5\n1. نظر کوتاه AI\n2. نقاط قوت\n3. فیلم/سریال مشابه`);
-        item.aiNotes = res; localStorage.setItem("cinetrack_ultimate_db", JSON.stringify(state.items)); noteContent.innerText = res;
-      } catch (err) { noteContent.innerText = "❌ برای تحلیل اختصاصی فیلم باید کلید OpenRouter را در تنظیمات وارد کنید."; }
-    }
-
-    async function generateGlobalAIAnalysis(forceRefresh = false) {
-      const box = document.getElementById("globalAiResponse");
-      if (state.items.length === 0) { box.innerText = "آرشیو خالی است."; return; }
-      if (state.globalAiCache && !forceRefresh) { box.innerText = state.globalAiCache; return; }
-      box.innerText = "در حال تحلیل کتابخانه...";
-      try {
-        const lib = state.items.map(i => `${i.title} | ${i.type} | ${i.genre} | امتیاز:${i.userRating}`).join('\n');
-        const res = await callOpenRouterAPI(`System: پاسخ تماماً فارسی.\nآرشیو:\n${lib}\n۱. شناسنامه سلیقه\n۲. پیشنهاد فیلم جدید\n۳. پیشنهاد سریال جدید`);
-        state.globalAiCache = res; localStorage.setItem("cinetrack_global_ai_cache", res); box.innerText = res; document.getElementById("regenGlobalAiBtn").style.display = "inline-flex";
-      } catch (err) { box.innerText = "❌ لطفاً ابتدا API Key را در بخش تنظیمات بالا وارد کنید."; }
-    }
-
-    /* ============================================================
        BACKUP & MODALS
     ============================================================ */
     function exportLibrary() { const a = document.createElement('a'); a.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state.items, null, 2)); a.download = `cinetrack_backup.json`; document.body.appendChild(a); a.click(); a.remove(); }
@@ -1002,7 +976,12 @@
       const key = document.getElementById("openRouterKeyInput").value;
       const sel = document.getElementById("aiModelSelect").value;
       const model = sel === "custom" ? document.getElementById("customModelInput").value.trim() : sel;
-      localStorage.setItem("cinetrack_or_key", key); localStorage.setItem("cinetrack_or_model", model);
+      const extUrl = document.getElementById("externalUrlInput").value.trim();
+      
+      localStorage.setItem("cinetrack_or_key", key);
+      localStorage.setItem("cinetrack_or_model", model);
+      localStorage.setItem("cinetrack_external_url", extUrl);
+      
       alert("تنظیمات ذخیره شد."); closeModal('settingsModal');
     }
     window.onload = init;
