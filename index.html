@@ -304,9 +304,10 @@
         <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">🔗 تنظیمات آرشیو خارجی (سیستم پیشرفته الگوها)</p>
         <div class="form-group">
           <label>الگوی لینک آرشیو (URL Template):</label>
-          <input type="text" id="archiveUrlInput" class="form-control" dir="ltr" placeholder="https://.../{title-exact}/S{season}/">
+          <input type="text" id="archiveUrlInput" class="form-control" dir="ltr" placeholder="https://.../archive.html?find={title-exact}">
           <div style="font-size: 12px; color: var(--text-muted); margin-top: 8px; line-height: 1.8; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px;">
-            شما می‌توانید ساختار پوشه‌های سایت دانلود خود را دقیقاً شبیه‌سازی کنید. از متغیرهای زیر در لینک استفاده کنید:<br>
+            سیستم اکنون با افزونه <b>Tampermonkey</b> هماهنگ است. برای اسکرول و جستجوی خودکار، حتماً عبارت <span style="color:var(--cyan); font-family:monospace;">?find={title-exact}</span> را به انتهای لینک اضافه کنید.<br>
+            سایر متغیرها:<br>
             <span style="color:var(--cyan); font-family:monospace;">{title-exact}</span> = نام دقیق (مثال: Severance)<br>
             <span style="color:var(--cyan); font-family:monospace;">{title-dot}</span> = نام با نقطه (مثال: Breaking.Bad)<br>
             <span style="color:var(--cyan); font-family:monospace;">{season}</span> = فصل دو رقمی (مثال: 01)<br>
@@ -345,7 +346,7 @@
 
       document.getElementById("openRouterKeyInput").value = localStorage.getItem("cinetrack_or_key") || "";
       
-      const defaultTemplate = "https://dls2.film2cinemaha.top/DonyayeSerial/{title-exact}/";
+      const defaultTemplate = "https://dls2.film2cinemaha.top/DonyayeSerial/donyaye_serial_all_archive.html?find={title-exact}";
       document.getElementById("archiveUrlInput").value = localStorage.getItem("cinetrack_archive_template") || defaultTemplate;
 
       const savedModel = localStorage.getItem("cinetrack_or_model") || "deepseek/deepseek-chat";
