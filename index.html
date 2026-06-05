@@ -97,7 +97,7 @@
     .progress-bar { height: 100%; background: var(--cyan); width: 0%; transition: width 0.5s ease; }
 
     /* Streaming Buttons */
-    .stream-buttons-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; margin-bottom: 15px;}
+    .stream-buttons-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; margin-bottom:15px; }
 
     .dashboard-stats { margin: 0 30px 30px 30px; display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 15px; }
 
@@ -276,7 +276,7 @@
   <div class="modal-backdrop" id="settingsModal">
     <div class="modal-box">
       <div class="modal-header">
-        <h3>تنظیمات سیستم و هوش مصنوعی</h3>
+        <h3>تنظیمات موتور هوش مصنوعی OpenRouter</h3>
         <button class="btn btn-secondary" style="padding:5px 10px;" onclick="closeModal('settingsModal')">✖</button>
       </div>
 
@@ -301,12 +301,16 @@
       </div>
 
       <div style="border-top: 1px solid var(--border); margin: 20px 0 15px 0; padding-top: 15px;">
-        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">🔗 تنظیمات آرشیو خارجی (اسکرول هوشمند)</p>
+        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">🔗 تنظیمات آرشیو خارجی (سیستم پیشرفته الگوها)</p>
         <div class="form-group">
-          <label>آدرس صفحه مرجع ایندکس شما:</label>
-          <input type="text" id="archiveUrlInput" class="form-control" dir="ltr" placeholder="https://dls2.../archive.html">
+          <label>الگوی لینک آرشیو (URL Template):</label>
+          <input type="text" id="archiveUrlInput" class="form-control" dir="ltr" placeholder="https://.../{title-exact}/S{season}/">
           <div style="font-size: 12px; color: var(--text-muted); margin-top: 8px; line-height: 1.8; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px;">
-            سیستم با استفاده از قابلیت <b>Text Fragment</b> مرورگر عمل می‌کند. نیازی به متغیر نیست، برنامه هنگام کلیک، نام فیلم یا سریال را به انتهای آدرس اضافه کرده و مرورگر مستقیماً روی متن عنوان، زوم و هایلایت خواهد کرد. پشتیبانی از <b>فیلم‌ها و سریال‌ها</b> فعال است.
+            شما می‌توانید ساختار پوشه‌های سایت دانلود خود را دقیقاً شبیه‌سازی کنید. از متغیرهای زیر در لینک استفاده کنید:<br>
+            <span style="color:var(--cyan); font-family:monospace;">{title-exact}</span> = نام دقیق (مثال: Severance)<br>
+            <span style="color:var(--cyan); font-family:monospace;">{title-dot}</span> = نام با نقطه (مثال: Breaking.Bad)<br>
+            <span style="color:var(--cyan); font-family:monospace;">{season}</span> = فصل دو رقمی (مثال: 01)<br>
+            <span style="color:var(--cyan); font-family:monospace;">{episode}</span> = قسمت دو رقمی (مثال: 05)
           </div>
         </div>
       </div>
@@ -341,8 +345,7 @@
 
       document.getElementById("openRouterKeyInput").value = localStorage.getItem("cinetrack_or_key") || "";
       
-      // Default to the provided archive URL structure
-      const defaultTemplate = "https://dls2.film2cinemaha.top/DonyayeSerial/donyaye_serial_all_archive.html";
+      const defaultTemplate = "https://dls2.film2cinemaha.top/DonyayeSerial/{title-exact}/";
       document.getElementById("archiveUrlInput").value = localStorage.getItem("cinetrack_archive_template") || defaultTemplate;
 
       const savedModel = localStorage.getItem("cinetrack_or_model") || "deepseek/deepseek-chat";
@@ -468,25 +471,70 @@
       return { season: currentSeason, episode: currentEpisode + 1 };
     }
 
-    /* ===================== SMART TEXT FRAGMENT ARCHIVE SEARCH ===================== */
+    /* ===================== SLUG & ADVANCED URL GENERATION ===================== */
+    function generateSlug(title) {
+      return title.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-+|-+$/g, '');
+    }
+
     function getArchiveTemplate() {
       return localStorage.getItem("cinetrack_archive_template") || null;
     }
 
-    function openArchiveLink(id) {
+    function buildEpisodeUrl(item, season, episode) {
+      const template = getArchiveTemplate();
+      if (!template) return null;
+
+      const titleExact = item.title.trim();
+      const titleDot = item.title.replace(/[^\w\s]/g, '').replace(/\s+/g, '.');
+      const titleSlug = generateSlug(item.title);
+
+      const seasonStr = season ? season.toString().padStart(2, '0') : "01";
+      const episodeStr = episode ? episode.toString().padStart(2, '0') : "01";
+      
+      let url = template
+        .replace(/\{title-exact\}/gi, encodeURIComponent(titleExact))
+        .replace(/\{title-dot\}/gi, titleDot)
+        .replace(/\{title-slug\}/gi, titleSlug)
+        .replace(/\{season\}/gi, seasonStr)
+        .replace(/\{episode\}/gi, episodeStr)
+        .replace(/\{season-raw\}/gi, season || 1)
+        .replace(/\{episode-raw\}/gi, episode || 1);
+      return url;
+    }
+
+    function getCurrentEpisodeUrl(item) {
+      return buildEpisodeUrl(item, item.season, item.episode);
+    }
+
+    function getNextEpisodeUrl(item) {
+      if (item.type !== 'series') return null;
+      const next = getNextEpisodeInfo(item);
+      if (!next) return null;
+      return buildEpisodeUrl(item, next.season, next.episode);
+    }
+
+    function openEpisodeLink(type, id) {
       const item = state.items.find(i => i.id === id);
       if (!item) return;
 
       const template = getArchiveTemplate();
       if (!template) {
-        alert("آدرس وب‌سایت آرشیو تنظیم نشده است.\nلطفاً در بخش ⚙️ تنظیمات، صفحه آرشیو را مشخص کنید.");
+        alert("الگوی سایت آرشیو تنظیم نشده است.\nلطفاً در بخش ⚙️ تنظیمات، الگو را بررسی کنید.");
         return;
       }
 
-      // Encode the title to be safe for URLs. Text fragment syntax: #:~:text=Keyword
-      const titleExact = encodeURIComponent(item.title.trim());
-      const url = `${template}#:~:text=${titleExact}`;
-      
+      let url;
+      if (type === 'current') {
+        url = getCurrentEpisodeUrl(item);
+      } else {
+        url = getNextEpisodeUrl(item);
+      }
+
+      if (!url) {
+        alert("لینک مورد نظر در دسترس نیست.");
+        return;
+      }
+
       window.open(url, "_blank");
     }
 
@@ -713,6 +761,7 @@
 
       const isSeries = item.type === "series";
       const hasTemplate = getArchiveTemplate() !== null;
+      const nextEp = isSeries ? getNextEpisodeInfo(item) : null;
       let progressHtml = "";
       
       if (isSeries) {
@@ -741,13 +790,18 @@
           </div>`;
       }
 
-      // Stream Button Html for BOTH Movie and Series using Text Fragment method
       let streamButtonsHtml = '';
       if (hasTemplate && item.status !== 'Planned') {
-        streamButtonsHtml = `
-          <div class="stream-buttons-row">
-            <button class="btn btn-stream" onclick="openArchiveLink('${item.id}')">▶ جستجو و یافتن «${item.title}» در آرشیو</button>
-          </div>`;
+        streamButtonsHtml = `<div class="stream-buttons-row">`;
+        if (isSeries) {
+            const currentUrl = getCurrentEpisodeUrl(item);
+            const nextUrl = nextEp ? getNextEpisodeUrl(item) : null;
+            if (currentUrl) streamButtonsHtml += `<button class="btn btn-stream" onclick="openEpisodeLink('current', '${item.id}')">▶ بررسی پوشه S${item.season.toString().padStart(2, '0')}</button>`;
+            if (nextUrl && nextEp.season !== item.season) streamButtonsHtml += `<button class="btn btn-stream-next" onclick="openEpisodeLink('next', '${item.id}')">⏭ بررسی پوشه S${nextEp.season.toString().padStart(2, '0')}</button>`;
+        } else {
+            streamButtonsHtml += `<button class="btn btn-stream" onclick="openEpisodeLink('current', '${item.id}')">▶ بررسی آرشیو و یافتن فیلم</button>`;
+        }
+        streamButtonsHtml += `</div>`;
       }
 
       container.innerHTML = `
@@ -1104,6 +1158,7 @@
           ${shuffled.map(item => {
             const next = item.type === 'series' ? getNextEpisodeInfo(item) : null;
             const nextLabel = next ? `S${next.season}E${next.episode}` : null;
+            const nextUrl = (next && hasTemplate) ? getNextEpisodeUrl(item) : null;
 
             return `
               <div style="background:var(--bg-surface); padding:12px; border-radius:10px; display:flex; gap:12px; align-items:flex-start; border:1px solid rgba(255,255,255,0.06);">
@@ -1112,7 +1167,8 @@
                   <h5 style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:13px; cursor:pointer; margin-bottom:3px;" onclick="selectItem('${item.id}')">${item.title}</h5>
                   <p style="font-size:11px; color:var(--text-muted);">⭐ IMDb ${item.imdb} | ${translateStatus(item.status)}</p>
                   ${item.type === 'series' && item.status === 'Watching' && nextLabel ? `<div class="watch-next-badge">▶ Next: ${nextLabel}</div>` : ''}
-                  ${hasTemplate ? `<button onclick="openArchiveLink('${item.id}')" class="btn btn-stream" style="padding:3px 9px; font-size:10px; border-radius:6px; margin-top:5px;">▶ جستجو در آرشیو</button>` : ''}
+                  ${hasTemplate && item.type === 'series' ? `<button onclick="openEpisodeLink('next','${item.id}')" class="btn btn-stream" style="padding:3px 9px; font-size:10px; border-radius:6px; margin-top:5px;">⏭ پوشه قسمت بعدی</button>` : ''}
+                  ${hasTemplate && item.type === 'movie' ? `<button onclick="openEpisodeLink('current','${item.id}')" class="btn btn-stream" style="padding:3px 9px; font-size:10px; border-radius:6px; margin-top:5px;">▶ یافتن در آرشیو</button>` : ''}
                 </div>
               </div>`;
           }).join('')}
