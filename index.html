@@ -95,10 +95,13 @@
     .progress-container { width: 100%; background: #333; border-radius: 10px; height: 8px; overflow: hidden; }
     .progress-bar { height: 100%; background: var(--cyan); width: 0%; transition: width 0.5s ease; }
 
-    .dashboard-stats { margin: 0 30px 30px 30px; display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 15px; }
+    .audio-review-block { background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); border-radius: 12px; padding: 15px; margin-top: 20px; }
+    .audio-controls { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
 
-    .stat-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 12px; padding: 15px; text-align: center; }
-    .stat-card h3 { font-size: 22px; font-weight: 800; color: var(--accent); margin-bottom: 5px; }
+    .dashboard-stats { margin: 0 30px 30px 30px; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; }
+
+    .stat-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 12px; padding: 15px; text-align: center; box-shadow: var(--shadow); }
+    .stat-card h3 { font-size: 20px; font-weight: 800; color: var(--accent); margin-bottom: 5px; }
     .stat-card p { font-size: 12px; color: var(--text-muted); }
 
     .section-title { margin: 20px 30px 10px 30px; font-size: 20px; font-weight: 800; display: flex; align-items: center; gap: 10px; }
@@ -188,7 +191,7 @@
 
   <section class="hero-section" id="heroSection"></section>
 
-  <section class="section-title">📊 داشبورد وضعیت و آمار پیشرفته</section>
+  <section class="section-title">📊 داشبورد وضعیت و آمار پیشرفته کتابخانه</section>
   <section class="dashboard-stats" id="dashboardStats"></section>
 
   <section class="controls-bar">
@@ -251,6 +254,16 @@
     </div>
   </div>
 
+  <div class="modal-backdrop" id="progressModal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>⚙️ بروزرسانی وضعیت قسمت‌ها</h3>
+        <button class="btn btn-secondary" style="padding:5px 10px;" onclick="closeModal('progressModal')">✖</button>
+      </div>
+      <div id="progressModalContent"></div>
+    </div>
+  </div>
+
   <div class="modal-backdrop" id="notesModal">
     <div class="modal-box">
       <div class="modal-header">
@@ -268,7 +281,7 @@
   <div class="modal-backdrop" id="settingsModal">
     <div class="modal-box">
       <div class="modal-header">
-        <h3>تنظیمات سیستم هوش مصنوعی و سورس آرشیو HTML</h3>
+        <h3>تنظیمات سیستم هوش مصنوعی و سورس آرشیو</h3>
         <button class="btn btn-secondary" style="padding:5px 10px;" onclick="closeModal('settingsModal')">✖</button>
       </div>
 
@@ -293,14 +306,11 @@
       </div>
 
       <div style="border-top: 1px solid var(--border); margin: 20px 0 15px 0; padding-top: 15px;">
-        <p style="font-size: 14px; color: var(--cyan); margin-bottom: 12px; font-weight:bold;">📥 بارگذاری سورس داخلی سایت آرشیو (دور زدن باگ کروم)</p>
+        <p style="font-size: 14px; color: var(--cyan); margin-bottom: 12px; font-weight:bold;">📥 بارگذاری فایل متنی / سورس آرشیو</p>
         <div class="form-group">
-          <label>فایل HTML دانلود شده از سایت آرشیو را انتخاب کنید:</label>
+          <label>فایل HTML دانلود شده از صفحه آرشیو را انتخاب کنید:</label>
           <input type="file" id="archiveHtmlFileInput" class="form-control" accept=".html,.htm" onchange="handleArchiveHtmlUpload(event)">
-          <div style="font-size: 12px; color: var(--text-muted); margin-top: 8px; line-height: 1.8; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px;">
-            برنامه به طور خودکار فایل آرشیو را ذخیره می‌کند. با این کار نیازی به باز شدن پنجره جدید یا اکستنشن نیست و کدهای IMDb مستقیماً تطبیق داده می‌شوند.
-          </div>
-          <div id="archiveUploadStatus" style="font-size: 12px; color: #ffc107; margin-top: 5px; font-weight: bold;"></div>
+          <div id="archiveUploadStatus" style="font-size: 12px; color: #ffc107; margin-top: 8px; font-weight: bold;"></div>
         </div>
       </div>
 
@@ -318,11 +328,13 @@
       sortBy: 'dateAdded',
       omdbCache: JSON.parse(localStorage.getItem("cinetrack_omdb_cache") || "{}"),
       globalAiCache: localStorage.getItem("cinetrack_global_ai_cache") || "",
-      archiveHtmlSource: localStorage.getItem("cinetrack_archive_html_raw") || ""
+      archiveHtmlSource: localStorage.getItem("cinetrack_archive_html_raw") || "",
+      audioReviews: JSON.parse(localStorage.getItem("cinetrack_audio_reviews") || "{}")
     };
 
     let searchDebounceTimer;
     let isSavingItem = false;
+    let recognition = null;
 
     /* ===================== INIT ===================== */
     function init() {
@@ -332,11 +344,12 @@
       renderHero();
       setupFilterButtonsUI();
       renderWatchNext();
+      initSpeechRecognition();
 
       document.getElementById("openRouterKeyInput").value = localStorage.getItem("cinetrack_or_key") || "";
       
       if (state.archiveHtmlSource) {
-        document.getElementById("archiveUploadStatus").innerText = "✅ سورس فایل آرشیو در حافظه لود شده و آماده تطبیق بر اساس IMDb است.";
+        document.getElementById("archiveUploadStatus").innerText = "✅ فایل آرشیو با موفقیت بارگذاری شده و آماده پردازش شناسه IMDb است.";
       }
 
       const savedModel = localStorage.getItem("cinetrack_or_model") || "deepseek/deepseek-chat";
@@ -362,7 +375,7 @@
       renderWatchNext();
     }
 
-    /* ===================== ARCHIVE HTML HANDLING ===================== */
+    /* ===================== ARCHIVE MATCHING ENGINE (FIXED FOR LOST) ===================== */
     function handleArchiveHtmlUpload(event) {
       const file = event.target.files[0];
       if (!file) return;
@@ -372,33 +385,58 @@
         const rawText = e.target.result;
         state.archiveHtmlSource = rawText;
         localStorage.setItem("cinetrack_archive_html_raw", rawText);
-        document.getElementById("archiveUploadStatus").innerText = "✅ فایل با موفقیت بارگذاری شد. " + file.name;
-        alert("سورس متنی سایت آرشیو با موفقیت ذخیره شد. اکنون کدهای IMDb مستقیماً تطبیق داده می‌شوند.");
+        document.getElementById("archiveUploadStatus").innerText = "✅ فایل بارگذاری شد: " + file.name;
+        alert("سورس آرشیو ذخیره شد. اکنون کدهای IMDb به طور دقیق تطبیق داده می‌شوند.");
+        if(state.selectedId) renderHero();
       };
       reader.readAsText(file);
     }
 
     function findMatchInArchive(imdbID) {
       if (!state.archiveHtmlSource) {
-        alert("لطفاً ابتدا فایل HTML آرشیو خود را در بخش تنظیمات (آیکون چرخ‌دنده بالای صفحه) آپلود کنید.");
+        alert("لطفاً ابتدا فایل HTML آرشیو خود را در بخش تنظیمات آپلود کنید.");
         return null;
       }
 
+      const cleanImdbId = imdbID.trim().toLowerCase();
+      const matchedLinks = [];
+
+      // ایجاد لایه امنیتی قدرتمند DOMParser
       const parser = new DOMParser();
       const doc = parser.parseFromString(state.archiveHtmlSource, 'text/html');
       const allLinks = doc.getElementsByTagName('a');
-      const lowerId = imdbID.toLowerCase();
-      
-      let matchedLinks = [];
 
       for (let link of allLinks) {
-        if (link.href.toLowerCase().includes(lowerId) || link.innerText.toLowerCase().includes(lowerId)) {
+        const hrefText = link.getAttribute('href') || '';
+        const innerText = link.innerText || '';
+
+        // تطبیق با امنیت بسیار بالا: نادیده گرفتن حروف کوچک و بزرگ و متصل بودن شناسه (حل باگ سریال LOST)
+        if (hrefText.toLowerCase().includes(cleanImdbId) || innerText.toLowerCase().includes(cleanImdbId)) {
           matchedLinks.push({
-            text: link.innerText.trim() || "لینک دانلود مستقیم آرشیو",
-            url: link.href
+            text: link.innerText.trim() || "لینک دانلود مستقیم از آرشیو",
+            url: hrefText
           });
         }
       }
+
+      // لایه دوم پشتیبان: اگر DOMParser به هر دلیلی تگ متفاوتی داشت، از Regex روی کل سورس متنی استفاده کن
+      if (matchedLinks.length === 0) {
+        try {
+          const regexPattern = new RegExp(`<a[^>]*href=["']([^"']*)["'][^>]*>([\s\S]*?)<\/a>`, 'gi');
+          let match;
+          while ((match = regexPattern.exec(state.archiveHtmlSource)) !== null) {
+            const url = match[1];
+            const anchorText = match[2].replace(/<[^>]*>/g, ''); 
+            if (url.toLowerCase().includes(cleanImdbId) || anchorText.toLowerCase().includes(cleanImdbId)) {
+              matchedLinks.push({
+                text: anchorText.trim() || "لینک مستقیم استخراج شده",
+                url: url
+              });
+            }
+          }
+        } catch(e) { console.error("Regex backup processing failed:", e); }
+      }
+
       return matchedLinks;
     }
 
@@ -410,18 +448,18 @@
       if (!matches || matches.length === 0) {
         resultsDiv.innerHTML = `
           <div style="background:rgba(229,9,20,0.1); border:1px solid var(--accent); padding:15px; border-radius:10px; font-size:14px;">
-            ⚠️ کد IMDb (${imdbID}) در فایل HTML آرشیو آپلود شده یافت نشد. اطمینان حاصل کنید که این فیلم در آرشیو دانلودی شما وجود دارد.
+            ⚠️ کد شناسایی IMDb (${imdbID}) در سورس فایل آرشیو شما پیدا نشد. مطمئن شوید که این عنوان در آرشیو دانلودی شما موجود است.
           </div>`;
         return;
       }
 
       let htmlRows = `<div style="background:rgba(46,125,50,0.1); border:1px solid var(--green); padding:15px; border-radius:10px; margin-bottom:15px;">
-        <p style="font-weight:bold; color:var(--green); margin-bottom:10px;">🎉 تطبیق موفقیت‌آمیز بر اساس شناسه IMDb! لینک‌های پیدا شده در سورس آرشیو شما:</p>`;
+        <p style="font-weight:bold; color:var(--green); margin-bottom:10px;">🎉 تطبیق موفقیت‌آمیز بر اساس شناسه منحصربه‌فرد IMDb! لینک‌های کشف شده:</p>`;
       
-      matches.forEach((item, index) => {
+      matches.forEach((item) => {
         htmlRows += `
           <div style="display:flex; justify-content:space-between; align-items:center; background:#222; padding:10px; border-radius:6px; margin-bottom:5px; gap:10px;">
-            <span style="font-size:13px; font-family:monospace; color:#ddd; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${item.text}</span>
+            <span style="font-size:13px; font-family:monospace; color:#ddd; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; direction:ltr; text-align:right;">${item.text}</span>
             <div style="display:flex; gap:5px;">
               <a href="${item.url}" target="_blank" class="btn btn-stream" style="padding:4px 10px; font-size:12px; border-radius:4px;">📥 دانلود مستقیم</a>
               <button class="btn btn-secondary" style="padding:4px 10px; font-size:12px; border-radius:4px;" onclick="navigator.clipboard.writeText('${item.url}'); alert('لینک کپی شد!');">📋 کپی لینک</button>
@@ -432,10 +470,67 @@
       resultsDiv.innerHTML = htmlRows;
     }
 
+    /* ===================== SPEECH RECOGNITION SYSTEM ===================== */
+    function initSpeechRecognition() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.lang = 'fa-IR';
+        recognition.interimResults = false;
+
+        recognition.onresult = function(event) {
+          const resultText = event.results[0][0].transcript;
+          const textarea = document.getElementById("audioReviewTextarea");
+          if (textarea) {
+            textarea.value = (textarea.value + " " + resultText).trim();
+            saveAudioReview(state.selectedId, textarea.value);
+          }
+          setRecordingState(false);
+        };
+
+        recognition.onerror = function() { setRecordingState(false); };
+        recognition.onend = function() { setRecordingState(false); };
+      }
+    }
+
+    function toggleVoiceInput() {
+      if (!recognition) {
+        alert("سیستم ضبط و تشخیص صدا در مرورگر شما پشتیبانی نمی‌شود. لطفا از گوگل کروم استفاده کنید.");
+        return;
+      }
+      const recBtn = document.getElementById("voiceRecBtn");
+      if (recBtn.classList.contains("recording")) {
+        recognition.stop();
+      } else {
+        setRecordingState(true);
+        recognition.start();
+      }
+    }
+
+    function setRecordingState(isRec) {
+      const recBtn = document.getElementById("voiceRecBtn");
+      if (!recBtn) return;
+      if (isRec) {
+        recBtn.classList.add("recording");
+        recBtn.style.background = "#ff9100";
+        recBtn.innerText = "🛑 در حال ضبط صدا... بسپارید به من";
+      } else {
+        recBtn.classList.remove("recording");
+        recBtn.style.background = "#2a2a2a";
+        recBtn.innerText = "🎙️ شروع ثبت صوتی نقد";
+      }
+    }
+
+    function saveAudioReview(id, text) {
+      state.audioReviews[id] = text;
+      localStorage.setItem("cinetrack_audio_reviews", JSON.stringify(state.audioReviews));
+    }
+
     /* ===================== SEASON DATA FETCHING ===================== */
     async function fetchSeasonData(imdbID, totalSeasons) {
       const seasonData = {};
-      const numSeasons = Math.min(parseInt(totalSeasons) || 1, 20);
+      const numSeasons = Math.min(parseInt(totalSeasons) || 1, 25);
 
       for (let s = 1; s <= numSeasons; s++) {
         const cacheKey = `${imdbID}_season_${s}`;
@@ -468,7 +563,7 @@
       if (btn) { btn.disabled = true; btn.innerText = "⏳ در حال دریافت..."; }
 
       try {
-        const numSeasons = Math.min(parseInt(item.totalSeasons) || 1, 20);
+        const numSeasons = Math.min(parseInt(item.totalSeasons) || 1, 25);
         for (let s = 1; s <= numSeasons; s++) {
           delete state.omdbCache[`${item.id}_season_${s}`];
         }
@@ -479,8 +574,8 @@
         renderHero();
         renderGrid();
       } catch (e) {
-        alert("خطا در دریافت داده‌های فصل‌ها.");
-        if (btn) { btn.disabled = false; btn.innerText = "🔄 دریافت اطلاعات فصل‌ها"; }
+        alert("خطا در دریافت اطلاعات فصل‌ها.");
+        if (btn) { btn.disabled = false; btn.innerText = "🔄 بروزرسانی ساختار فصل‌ها"; }
       }
     }
 
@@ -531,7 +626,51 @@
       return { season: currentSeason, episode: currentEpisode + 1 };
     }
 
-    /* ===================== HERO RENDER WITH FULL IMDB DATA ===================== */
+    /* ===================== QUICK PROGRESS MANAGE MODAL ===================== */
+    function openManageProgressModal(id) {
+      const item = state.items.find(i => i.id === id);
+      if (!item) return;
+
+      const backdrop = document.getElementById("progressModal");
+      const container = document.getElementById("progressModalContent");
+
+      container.innerHTML = `
+        <p style="font-size:14px; margin-bottom:15px; color:var(--text-muted);">تغییر وضعیت تماشای قسمت‌های سریال بدون به هم ریختن محاسبات دقیق پیشرفت کل کلوپ:</p>
+        <input type="hidden" id="progressManageId" value="${item.id}">
+        <div class="form-row">
+          <div class="form-group">
+            <label>فصل فعلی:</label>
+            <input type="number" id="progressManageSeason" class="form-control" value="${item.season}" min="1" max="${item.totalSeasons || 50}">
+          </div>
+          <div class="form-group">
+            <label>قسمت فعلی:</label>
+            <input type="number" id="progressManageEpisode" class="form-control" value="${item.episode}" min="0">
+          </div>
+        </div>
+        <button class="btn" style="width:100%; margin-top:15px;" onclick="saveQuickProgress()">⚡ اعمال و آپدیت آنی وضعیت</button>
+      `;
+      backdrop.classList.add("active");
+    }
+
+    function saveQuickProgress() {
+      const id = document.getElementById("progressManageId").value;
+      const item = state.items.find(i => i.id === id);
+      if (!item) return;
+
+      const newS = parseInt(document.getElementById("progressManageSeason").value) || 1;
+      const newE = parseInt(document.getElementById("progressManageEpisode").value) || 0;
+
+      item.season = newS;
+      item.episode = newE;
+      item.lastUpdated = new Date().toISOString();
+
+      saveStateToStorage();
+      closeModal("progressModal");
+      renderHero();
+      renderGrid();
+    }
+
+    /* ===================== HERO RENDER ===================== */
     function renderHero() {
       const container = document.getElementById("heroSection");
       if (!state.selectedId || state.items.length === 0) {
@@ -542,7 +681,7 @@
           container.innerHTML = `
             <div class="hero-empty">
               <span style="font-size:48px;">🎬</span>
-              <p>فیلم یا سریالی را انتخاب کنید تا جزئیات کامل متصل به پایگاه داده IMDb به همراه قابلیت تطبیق هوشمند سورس دانلود بارگذاری شوند.</p>
+              <p>فیلم یا سریالی را انتخاب کنید تا جزئیات کامل به همراه نقد صوتی و لینک‌های آفلاین سورس آرشیو بارگذاری شوند.</p>
             </div>`;
           return;
         }
@@ -553,6 +692,7 @@
 
       const isSeries = item.type === 'series';
       const progressPercent = getProgressPercent(item);
+      const savedReview = state.audioReviews[item.id] || "";
 
       container.innerHTML = `
         <div class="hero-content">
@@ -561,7 +701,7 @@
             <h2 class="hero-title">${item.title}</h2>
             <div class="hero-meta">
               <span class="badge badge-status">${translateStatus(item.status)}</span>
-              <span class="badge" style="background:var(--accent); letter-spacing:1px; font-family:monospace;">IMDb ID: ${item.id}</span>
+              <span class="badge" style="background:var(--accent); font-family:monospace;">ID: ${item.id}</span>
               <span class="badge">⭐ ${item.imdbRating || 'N/A'}</span>
               <span class="badge">📅 سال: ${item.year || 'N/A'}</span>
               <span class="badge">⏰ مدت: ${item.runtime || 'N/A'}</span>
@@ -571,12 +711,12 @@
             <div class="hero-extended-info">
               <div class="extended-row"><strong>🎬 کارگردان (Director):</strong> ${item.director || 'نامشخص'}</div>
               <div class="extended-row"><strong>📝 نویسنده (Writer):</strong> ${item.writer || 'نامشخص'}</div>
-              <div class="extended-row"><strong>🎭 ستارگان و بازیگران (Actors):</strong> ${item.actors || 'نامشخص'}</div>
-              <div class="extended-row"><strong>🌍 زبان و کشور (Language/Country):</strong> ${item.language || 'نامشخص'} / ${item.country || 'نامشخص'}</div>
-              <div class="extended-row"><strong>🏆 جوایز و نامزدی‌ها (Awards):</strong> ${item.awards || 'بدون جایزه ثبت شده'}</div>
+              <div class="extended-row"><strong>🎭 ستارگان (Actors):</strong> ${item.actors || 'نامشخص'}</div>
+              <div class="extended-row"><strong>🌍 زبان / کشور:</strong> ${item.language || 'نامشخص'} / ${item.country || 'نامشخص'}</div>
+              <div class="extended-row"><strong>🏆 جوایز و نامزدی‌ها:</strong> ${item.awards || 'بدون مورد ثبت شده'}</div>
             </div>
 
-            <p class="hero-plot">${item.plot || 'توضیحاتی ثبت نشده است.'}</p>
+            <p class="hero-plot">${item.plot || 'توضیحات داستانی برای این مورد یافت نشد.'}</p>
             
             ${isSeries ? `
               <div class="episode-progress-block">
@@ -592,22 +732,84 @@
 
             <div id="archiveMatchResults" style="margin-top:15px; margin-bottom:15px;"></div>
 
-            <div class="hero-actions">
+            <div class="audio-review-block">
+              <div class="audio-controls">
+                <h4 style="font-size:14px; font-weight:bold; color:var(--cyan);">🎙️ نقد و بررسی صوتی / متنی شما</h4>
+                <button id="voiceRecBtn" class="btn btn-secondary" style="padding:4px 12px; font-size:12px; border-radius:6px;" onclick="toggleVoiceInput()">🎙️ شروع ثبت صوتی نقد</button>
+              </div>
+              <textarea id="audioReviewTextarea" class="form-control" style="min-height:80px; font-size:13px; background:#111;" placeholder="نقد شخصی خود را بنویسید یا دکمه ضبط صدا را بزنید تا صحبت‌های شما تایپ شود..." oninput="saveAudioReview('${item.id}', this.value)">${savedReview}</textarea>
+            </div>
+
+            <div class="hero-actions" style="margin-top:20px;">
               <button class="btn btn-stream" onclick="matchAndExtractLinks('${item.id}')">
-                🔍 تطبیق آفلاین و دریافت لینک از سورس HTML آرشیو
+                🔍 استخراج لینک‌های دانلود فایل از سورس آرشیو
               </button>
               
               ${isSeries ? `
+                <button class="btn btn-secondary" style="background:#1a237e;" onclick="openManageProgressModal('${item.id}')">
+                  ⚙️ ویرایش و تغییر قسمت
+                </button>
                 <button class="btn btn-secondary" id="refreshSeasonDataBtn" onclick="refreshSeasonData('${item.id}')">
                   🔄 بروزرسانی ساختار فصل‌ها
                 </button>
-                <button class="btn btn-secondary" onclick="openManageProgressModal('${item.id}')">⚙️ ویرایش پیشرفت قسمت</button>
               ` : ''}
               
-              <button class="btn btn-secondary btn-delete" onclick="deleteItem('${item.id}')">🗑️ حذف</button>
+              <button class="btn btn-secondary btn-delete" onclick="deleteItem('${item.id}')">🗑️ حذف عنوان</button>
             </div>
           </div>
         </div>
+      `;
+    }
+
+    /* ===================== ADVANCED STATS SYSTEM (IMDB AVG, MY AVG, FAVORITE GENRE) ===================== */
+    function renderDashboard() {
+      const container = document.getElementById("dashboardStats");
+      if (!container) return;
+
+      const total = state.items.length;
+      const watching = state.items.filter(i => i.status === "Watching").length;
+      const completed = state.items.filter(i => i.status === "Completed").length;
+
+      // ۱. محاسبه میانگین امتیاز IMDb کل کتابخانه فیلم و سریال
+      let totalImdb = 0;
+      let imdbCount = 0;
+      state.items.forEach(i => {
+        let parsed = parseFloat(i.imdbRating);
+        if(!isNaN(parsed)) { totalImdb += parsed; imdbCount++; }
+      });
+      const imdbAvg = imdbCount > 0 ? (totalImdb / imdbCount).toFixed(1) : "0.0";
+
+      // ۲. محاسبه میانگین امتیاز شخصی ثبت شده شما
+      let totalUserRating = 0;
+      let userRatingCount = 0;
+      state.items.forEach(i => {
+        if(i.userRating > 0) { totalUserRating += i.userRating; userRatingCount++; }
+      });
+      const userAvg = userRatingCount > 0 ? (totalUserRating / userRatingCount).toFixed(1) : "0.0";
+
+      // ۳. استخراج ژانر محبوب بر اساس فراوانی تکرار در کل لیست آرشیو شما
+      let genreFreq = {};
+      state.items.forEach(i => {
+        if(i.genre && i.genre !== "N/A") {
+          i.genre.split(",").forEach(g => {
+            let cleanG = g.trim();
+            genreFreq[cleanG] = (genreFreq[cleanG] || 0) + 1;
+          });
+        }
+      });
+      let favoriteGenre = "نامشخص";
+      let maxCount = 0;
+      for(let g in genreFreq) {
+        if(genreFreq[g] > maxCount) { maxCount = genreFreq[g]; favoriteGenre = g; }
+      }
+
+      container.innerHTML = `
+        <div class="stat-card"><h3>${total}</h3><p>کل عناوین کتابخانه</p></div>
+        <div class="stat-card"><h3>${watching}</h3><p>⏳ در حال تماشا</p></div>
+        <div class="stat-card"><h3>${completed}</h3><p>✅ تمام شده</p></div>
+        <div class="stat-card"><h3 style="color:#ffc107;">⭐ ${imdbAvg}</h3><p>میانگین کل IMDb</p></div>
+        <div class="stat-card"><h3 style="color:var(--cyan);">★ ${userAvg}</h3><p>میانگین امتیازهای من</p></div>
+        <div class="stat-card"><h3 style="color:#2e7d32; font-size:16px; padding-top:4px;">${favoriteGenre}</h3><p>🎭 ژانر محبوب شما</p></div>
       `;
     }
 
@@ -672,7 +874,7 @@
             localStorage.setItem("cinetrack_omdb_cache", JSON.stringify(state.omdbCache));
           }
         } catch (e) {
-          alert("خطا در برقراری ارتباط با بانک اطلاعاتی OMDb");
+          alert("خطا در برقراری ارتباط با OMDb");
           return;
         }
       }
@@ -691,7 +893,7 @@
             <p style="font-size:13px; margin-bottom:5px;">📅 <b>سال انتشار:</b> ${data.Year} | ⭐ <b>امتیاز:</b> ${data.imdbRating}</p>
             <p style="font-size:13px; margin-bottom:5px;">🎭 <b>ژانر:</b> ${data.Genre}</p>
             <p style="font-size:12px; color:var(--text-muted); line-height:1.6;">${data.Plot ? data.Plot.substring(0, 160) + '...' : ''}</p>
-            ${isSeries ? `<p class="season-fetch-status" id="seasonFetchStatus">🔄 اطلاعات فصل‌ها پس از ثبت دریافت می‌شود...</p>` : ''}
+            ${isSeries ? `<p class="season-fetch-status" id="seasonFetchStatus">🔄 اطلاعات فصل‌ها پس از ثبت به طور خودکار دریافت می‌شود...</p>` : ''}
           </div>
         </div>
         <input type="hidden" id="formImdbID" value="${data.imdbID}">
@@ -780,7 +982,7 @@
 
       if (isSeries) {
         const statusEl = document.getElementById("seasonFetchStatus");
-        if (statusEl) statusEl.innerText = "⏳ در حال استخراج متادیتا و اپیزودها...";
+        if (statusEl) statusEl.innerText = "⏳ در حال استخراج متادیتا و تعداد اپیزودها...";
         seasonData = await fetchSeasonData(imdbID, rawCached.totalSeasons);
       }
 
@@ -825,7 +1027,7 @@
       isSavingItem = false;
     }
 
-    /* ===================== RENDER GRID & OTHER INTERFACE PARTS ===================== */
+    /* ===================== RENDER GRID & FILTERS ===================== */
     function deleteItem(id) {
       if (!confirm("آیا مطمئن هستید که می‌خواهید این عنوان را حذف کنید؟")) return;
       state.items = state.items.filter(i => i.id !== id);
@@ -849,23 +1051,6 @@
       if (s === "Planned") return "📅 برنامه‌ریزی شده";
       if (s === "Completed") return "✅ تمام شده";
       return s;
-    }
-
-    function renderDashboard() {
-      const container = document.getElementById("dashboardStats");
-      if (!container) return;
-
-      const total = state.items.length;
-      const watching = state.items.filter(i => i.status === "Watching").length;
-      const planned = state.items.filter(i => i.status === "Planned").length;
-      const completed = state.items.filter(i => i.status === "Completed").length;
-
-      container.innerHTML = `
-        <div class="stat-card"><h3>${total}</h3><p>کل کتابخانه</p></div>
-        <div class="stat-card"><h3>${watching}</h3><p>⏳ در حال تماشا</p></div>
-        <div class="stat-card"><h3>${planned}</h3><p>📅 برنامه‌ریزی شده</p></div>
-        <div class="stat-card"><h3>${completed}</h3><p>✅ تمام شده</p></div>
-      `;
     }
 
     function extractAndRenderGenres() {
@@ -947,7 +1132,7 @@
 
       const items = getFilteredAndSortedItems();
       if (items.length === 0) {
-        container.innerHTML = `<div style="grid-column: 1/-1; text-align:center; padding:40px; color:var(--text-muted); font-size:14px;">هیچ عنوانی با فیلترهای کنونی یافت نشد.</div>`;
+        container.innerHTML = `<div style="grid-column: 1/-1; text-align:center; padding:40px; color:var(--text-muted); font-size:14px;">هیچ عنوانی با فیلترهای مشخص شده یافت نشد.</div>`;
         return;
       }
 
@@ -1010,7 +1195,7 @@
 
       const top = getTopWatchNext();
       if (!top) {
-        container.innerHTML = `<p style="color:var(--text-muted); font-size:14px;">کتابخانه شما خالی است یا هیچ فیلمی در وضعیت در حال تماشا یا برنامه‌ریزی قرار ندارد.</p>`;
+        container.innerHTML = `<p style="color:var(--text-muted); font-size:14px;">لیست شما خالی است یا هیچ فیلمی در وضعیت در حال تماشا یا برنامه‌ریزی قرار ندارد.</p>`;
         return;
       }
 
@@ -1051,7 +1236,7 @@
       const responseBox = document.getElementById("globalAiResponse");
 
       btn.disabled = true;
-      responseBox.innerText = "⏳ موتور استدلال در حال بررسی الگوها، سوابق تماشا و محاسبات ترجیحات ژانر شماست. لطفاً شکیبا باشید...";
+      responseBox.innerText = "⏳ موتور استدلال هوش مصنوعی در حال بررسی الگوها، سوابق تماشا و ترجیحات ژانر شماست. لطفاً شکیبا باشید...";
 
       const promptData = state.items.map(i => ({
         title: i.title,
@@ -1098,7 +1283,7 @@
       }
     }
 
-    /* ===================== BACKUPS = "EXPORT/IMPORT" ===================== */
+    /* ===================== BACKUPS ===================== */
     function exportLibrary() {
       const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state.items, null, 2));
       const dlAnchor = document.createElement('a');
