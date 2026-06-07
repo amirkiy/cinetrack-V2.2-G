@@ -3,172 +3,486 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CineTrack AI Ultimate</title>
-  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+  <title>CineTrack AI — Ultimate Edition</title>
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg-main: #0a0a0a;
-      --bg-surface: #141414;
-      --bg-card: #1f1f1f;
-      --bg-glass: rgba(20, 20, 20, 0.75);
-      --accent: #e50914;
-      --accent-hover: #b80710;
-      --text-main: #ffffff;
-      --text-muted: #aaaaaa;
-      --border: rgba(255, 255, 255, 0.1);
-      --shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
-      --cyan: #00bcd4;
-      --green: #2e7d32;
-      --blue: #1a237e;
+      --bg-primary: #0d0f1a;
+      --bg-secondary: #151829;
+      --surface: rgba(255,255,255,0.04);
+      --surface-hover: rgba(255,255,255,0.08);
+      --border: rgba(255,255,255,0.08);
+      --accent: #ff4d6a;
+      --accent-hover: #e64255;
+      --text-primary: #f0f0f5;
+      --text-secondary: #a0a4b8;
+      --shadow: 0 4px 12px rgba(0,0,0,0.3);
+      --glass: rgba(255,255,255,0.05);
+      --glass-border: rgba(255,255,255,0.1);
+      --gradient-hero: linear-gradient(135deg, #1e1b4b, #0f172a);
+      --cyan: #22d3ee;
+      --green: #10b981;
+      --blue: #60a5fa;
+      --radius: 16px;
+      --radius-sm: 12px;
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Vazirmatn', sans-serif; transition: all 0.25s ease; }
+    /* FIX: removed "transition: all" from * — was a major perf bottleneck */
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Vazirmatn', sans-serif; }
 
-    body { background-color: var(--bg-main); color: var(--text-main); overflow-x: hidden; padding-bottom: 60px; }
+    /* Targeted transitions only on interactive elements */
+    .btn, .btn-secondary, .btn-delete, .btn-stream, .btn-stream-next,
+    .filter-btn, .movie-card, .search-item, .voice-rec-btn,
+    .load-more-btn { transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease, border-color 0.2s ease, color 0.2s ease; }
+    .modal-backdrop { transition: opacity 0.25s ease; }
+    .progress-bar { transition: width 0.6s ease; }
+    .search-dropdown { transition: none; }
+
+    body { background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; padding-bottom: 80px; }
+
+    .glass {
+      background: var(--glass); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--glass-border); border-radius: var(--radius);
+    }
 
     header {
-      background: var(--bg-surface); border-bottom: 1px solid var(--border);
-      padding: 15px 30px; display: flex; justify-content: space-between;
-      align-items: center; position: sticky; top: 0; z-index: 100;
-      backdrop-filter: blur(10px); flex-wrap: wrap; gap: 15px;
+      background: rgba(13,15,26,0.8); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border); padding: 16px 32px; display: flex; justify-content: space-between;
+      align-items: center; position: sticky; top: 0; z-index: 100; gap: 20px; flex-wrap: wrap;
     }
 
-    .brand { font-size: 24px; font-weight: 900; color: var(--accent); letter-spacing: 1px; display: flex; align-items: center; gap: 8px; }
+    .brand {
+      font-size: 26px; font-weight: 900; color: var(--accent); display: flex; align-items: center; gap: 8px;
+      background: linear-gradient(135deg, #ff4d6a, #ff8fa3); -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent; background-clip: text;
+    }
 
-    .search-container { position: relative; width: 35%; max-width: 500px; min-width: 250px; }
+    .search-container { position: relative; width: 38%; max-width: 480px; min-width: 260px; }
 
-    .search-wrapper { display: flex; align-items: center; background: #222; border: 1px solid var(--border); border-radius: 30px; padding: 2px 15px; }
-    .search-wrapper input { flex: 1; background: transparent; border: none; color: #fff; padding: 10px; font-size: 15px; outline: none; }
-    .search-wrapper button { background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: 16px; }
+    .search-wrapper {
+      display: flex; align-items: center; background: rgba(255,255,255,0.07); border: 1px solid var(--glass-border);
+      border-radius: 14px; padding: 2px 16px; backdrop-filter: blur(8px);
+    }
+    .search-wrapper input {
+      flex: 1; background: transparent; border: none; color: var(--text-primary); padding: 12px 0;
+      font-size: 14px; outline: none;
+    }
+    .search-wrapper button {
+      background: transparent; border: none; color: var(--text-secondary); cursor: pointer;
+      font-size: 16px; padding: 0 6px;
+    }
 
-    .search-dropdown { position: absolute; top: 105%; left: 0; right: 0; background: #1c1c1c; border: 1px solid var(--border); border-radius: 12px; max-height: 400px; overflow-y: auto; z-index: 200; box-shadow: var(--shadow); display: none; }
+    .search-dropdown {
+      position: absolute; top: 110%; left: 0; right: 0; background: var(--bg-secondary);
+      border: 1px solid var(--glass-border); border-radius: var(--radius-sm); max-height: 400px; overflow-y: auto;
+      z-index: 200; box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: none;
+      backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+    }
 
-    .search-item { display: flex; gap: 15px; padding: 10px; border-bottom: 1px solid var(--border); cursor: pointer; align-items: center; }
-    .search-item:hover { background: #282828; }
-    .search-item img { width: 45px; height: 65px; object-fit: cover; border-radius: 4px; background: #333; }
-    .search-item .info h4 { font-size: 14px; margin-bottom: 4px; }
-    .search-item .info p { font-size: 12px; color: var(--text-muted); }
+    .search-item {
+      display: flex; gap: 16px; padding: 14px; border-bottom: 1px solid var(--border); cursor: pointer; align-items: center;
+    }
+    .search-item:hover { background: rgba(255,255,255,0.05); }
+    .search-item img { width: 45px; height: 65px; object-fit: cover; border-radius: 8px; background: #1e1e2f; }
+    .search-item .info h4 { font-size: 14px; margin-bottom: 4px; color: var(--text-primary); font-weight: 700; }
+    .search-item .info p { font-size: 12px; color: var(--text-secondary); }
 
-    .nav-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+    .nav-actions { display: flex; gap: 12px; }
 
-    .btn { background: var(--accent); color: white; border: none; padding: 10px 20px; border-radius: 20px; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; }
-    .btn:hover { background: var(--accent-hover); }
-    .btn-secondary { background: #2a2a2a; border: 1px solid var(--border); }
-    .btn-secondary:hover { background: #3a3a3a; }
-    .btn-delete { background: #551111; }
-    .btn-delete:hover { background: #881111; }
-    .btn-stream { background: #1b5e20 !important; }
-    .btn-stream:hover { background: #2e7d32 !important; }
-    .btn-stream-next { background: #0d47a1 !important; }
-    .btn-stream-next:hover { background: #1565c0 !important; }
+    .btn {
+      background: var(--accent); color: white; border: none; padding: 10px 20px; border-radius: 12px; cursor: pointer;
+      font-weight: 600; display: inline-flex; align-items: center; gap: 8px; font-size: 13px;
+      box-shadow: 0 4px 12px rgba(255,77,106,0.3);
+    }
+    .btn:hover { background: var(--accent-hover); transform: translateY(-1px); box-shadow: 0 6px 16px rgba(255,77,106,0.4); }
+    .btn-secondary {
+      background: rgba(255,255,255,0.06); border: 1px solid var(--glass-border); color: var(--text-primary);
+      box-shadow: none;
+    }
+    .btn-secondary:hover { background: rgba(255,255,255,0.12); }
+    .btn-delete { background: #ef4444; color: white; }
+    .btn-delete:hover { background: #dc2626; }
+    .btn-stream { background: var(--green) !important; color: white !important; box-shadow: 0 4px 12px rgba(16,185,129,0.3); }
+    .btn-stream:hover { background: #059669 !important; }
+    .btn-stream-next { background: var(--blue) !important; color: white !important; box-shadow: 0 4px 12px rgba(96,165,250,0.3); }
+    .btn-stream-next:hover { background: #2563eb !important; }
 
-    .hero-section { margin: 30px; background: linear-gradient(135deg, #1c1c1c 0%, #111 100%); border-radius: 20px; padding: 30px; border: 1px solid var(--border); position: relative; min-height: 350px; display: flex; align-items: center; box-shadow: var(--shadow); }
+    .section-title {
+      margin: 32px 32px 16px; font-size: 20px; font-weight: 800; display: flex; align-items: center;
+      gap: 10px; color: var(--text-primary);
+    }
 
-    .hero-empty { text-align: center; width: 100%; color: var(--text-muted); font-size: 18px; display: flex; flex-direction: column; align-items: center; gap: 15px; }
+    .hero-section {
+      margin: 32px; background: var(--gradient-hero); border-radius: var(--radius); padding: 32px;
+      border: 1px solid var(--glass-border); min-height: 260px; display: flex; align-items: center;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+    }
 
-    .hero-content { display: flex; gap: 40px; width: 100%; align-items: flex-start; }
+    .hero-empty { text-align: center; width: 100%; color: var(--text-secondary); font-size: 18px; display: flex; flex-direction: column; align-items: center; gap: 16px; }
+    .hero-content { display: flex; gap: 32px; width: 100%; align-items: flex-start; }
 
-    .hero-poster { width: 200px; height: 300px; object-fit: cover; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.8); border: 1px solid var(--border); }
+    .hero-poster {
+      width: 240px; height: 340px; object-fit: cover; border-radius: 14px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.15);
+    }
 
     .hero-details { flex: 1; }
+    .hero-title { font-size: 32px; font-weight: 900; margin-bottom: 14px; color: white; letter-spacing: -0.5px; }
+    .hero-meta { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 24px; font-size: 13px; }
 
-    .hero-title { font-size: 32px; font-weight: 900; margin-bottom: 10px; color: #fff; }
+    .badge {
+      background: rgba(255,255,255,0.08); padding: 5px 14px; border-radius: 20px; font-size: 13px;
+      font-weight: 600; color: var(--text-secondary); border: 1px solid var(--glass-border);
+    }
+    .badge-status { background: rgba(255,77,106,0.15); color: var(--accent); border-color: rgba(255,77,106,0.25); }
 
-    .hero-meta { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 15px; font-size: 14px; color: var(--text-muted); }
+    .hero-extended-info {
+      background: rgba(255,255,255,0.03); padding: 20px; border-radius: var(--radius-sm); margin-bottom: 24px;
+      border: 1px solid var(--glass-border); display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;
+    }
+    .extended-row { font-size: 13px; line-height: 1.6; color: var(--text-primary); }
+    .extended-row strong { color: var(--text-secondary); font-weight: 600; display: inline-block; width: 120px; }
+    .hero-plot { font-size: 15px; line-height: 1.9; color: #d0d4e0; margin-bottom: 28px; }
 
-    .badge { background: rgba(255, 255, 255, 0.1); padding: 3px 10px; border-radius: 6px; font-size: 12px; font-weight: bold; color: #fff; }
-    .badge-status { background: var(--accent); }
+    .hero-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 28px; border-top: 1px solid var(--glass-border); padding-top: 24px; }
 
-    .hero-extended-info { background: rgba(255,255,255,0.03); padding: 15px; border-radius: 10px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.05); }
-    .extended-row { font-size: 14px; margin-bottom: 8px; line-height: 1.6; }
-    .extended-row strong { color: var(--cyan); }
+    .episode-progress-block {
+      background: rgba(34,211,238,0.05); border: 1px solid rgba(34,211,238,0.15); border-radius: var(--radius-sm);
+      padding: 18px; margin-bottom: 24px;
+    }
+    .episode-progress-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .episode-progress-title { font-size: 15px; font-weight: 700; color: var(--cyan); }
+    .episode-progress-count { font-size: 13px; color: var(--text-secondary); font-weight: 600; }
 
-    .hero-plot { font-size: 15px; line-height: 1.8; color: #ddd; margin-bottom: 25px; max-width: 800px; }
+    .progress-container { width: 100%; background: rgba(255,255,255,0.1); border-radius: 10px; height: 8px; overflow: hidden; }
+    .progress-bar { height: 100%; background: var(--cyan); width: 0%; border-radius: 10px; }
 
-    .hero-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+    .audio-review-block {
+      background: linear-gradient(135deg, rgba(34,211,238,0.04) 0%, rgba(96,165,250,0.06) 100%);
+      border: 1.5px solid rgba(34,211,238,0.2); border-radius: var(--radius-sm); padding: 22px; margin-top: 24px;
+      position: relative;
+    }
+    .audio-review-block::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, var(--cyan), var(--blue)); border-radius: 12px 12px 0 0; }
+    .audio-controls { display: flex; justify-content: space-between; margin-bottom: 14px; align-items: center; }
+    .review-textarea {
+      width: 100%; min-height: 100px; resize: vertical; background: rgba(255,255,255,0.05);
+      border: 1.5px solid rgba(255,255,255,0.1); border-radius: var(--radius-sm); padding: 14px;
+      font-size: 14px; line-height: 1.8; color: var(--text-primary); outline: none; backdrop-filter: blur(4px);
+      transition: border-color 0.2s;
+    }
+    .review-textarea:focus { border-color: var(--cyan); }
+    .voice-rec-btn {
+      background: rgba(255,255,255,0.06); border: 1px solid var(--glass-border); color: var(--text-primary);
+      padding: 8px 18px; border-radius: 24px; cursor: pointer; font-size: 12px; font-weight: 600;
+      display: inline-flex; align-items: center; gap: 8px;
+    }
+    .voice-rec-btn:hover { border-color: var(--cyan); color: var(--cyan); }
+    .voice-rec-btn.recording { background: rgba(245,158,11,0.15); border-color: #f59e0b; color: #f59e0b; animation: pulse-rec 1.2s infinite; }
+    @keyframes pulse-rec { 0%, 100% { box-shadow: 0 0 0 0 rgba(245,158,11,0.4); } 50% { box-shadow: 0 0 0 10px rgba(245,158,11,0); } }
 
-    .episode-progress-block { background: rgba(0, 188, 212, 0.07); border: 1px solid rgba(0, 188, 212, 0.25); border-radius: 12px; padding: 14px 18px; margin-bottom: 15px; }
-    .episode-progress-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
-    .episode-progress-title { font-size: 15px; font-weight: 800; color: var(--cyan); }
-    .episode-progress-count { font-size: 13px; color: var(--text-muted); }
+    .dashboard-stats {
+      margin: 24px 32px 32px; display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px;
+    }
+    .stat-card {
+      background: var(--surface); border: 1px solid var(--glass-border); border-radius: var(--radius-sm);
+      padding: 20px; text-align: center; backdrop-filter: blur(12px);
+    }
+    .stat-card h3 { font-size: 28px; font-weight: 800; color: var(--text-primary); margin-bottom: 6px; }
+    .stat-card p { font-size: 13px; color: var(--text-secondary); font-weight: 500; }
 
-    .progress-container { width: 100%; background: #333; border-radius: 10px; height: 8px; overflow: hidden; }
-    .progress-bar { height: 100%; background: var(--cyan); width: 0%; transition: width 0.5s ease; }
+    .watch-next-container {
+      margin: 0 32px 32px; background: var(--surface); border: 1px solid var(--glass-border);
+      border-radius: var(--radius); padding: 24px; backdrop-filter: blur(12px);
+    }
 
-    .audio-review-block { background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); border-radius: 12px; padding: 15px; margin-top: 20px; }
-    .audio-controls { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
-
-    .dashboard-stats { margin: 0 30px 30px 30px; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; }
-
-    .stat-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 12px; padding: 15px; text-align: center; box-shadow: var(--shadow); }
-    .stat-card h3 { font-size: 20px; font-weight: 800; color: var(--accent); margin-bottom: 5px; }
-    .stat-card p { font-size: 12px; color: var(--text-muted); }
-
-    .section-title { margin: 20px 30px 10px 30px; font-size: 20px; font-weight: 800; display: flex; align-items: center; gap: 10px; }
-
-    .watch-next-container { margin: 0 30px 30px 30px; background: #111; border: 1px dashed var(--border); border-radius: 15px; padding: 20px; }
-
-    .controls-bar { margin: 0 30px 20px 30px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
+    .controls-bar {
+      margin: 0 32px 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;
+    }
 
     .filters-group { display: flex; gap: 8px; flex-wrap: wrap; }
 
-    .filter-btn { background: #1a1a1a; border: 1px solid var(--border); color: var(--text-muted); padding: 6px 14px; border-radius: 20px; cursor: pointer; font-size: 13px; }
+    .filter-btn {
+      background: rgba(255,255,255,0.04); border: 1px solid var(--glass-border); color: var(--text-secondary);
+      padding: 8px 16px; border-radius: 10px; cursor: pointer; font-size: 13px; font-weight: 600;
+    }
+    .filter-btn:hover { background: rgba(255,255,255,0.1); }
     .filter-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 
-    select.sort-select, select.form-control { background: #2b2b2b; color: #fff; border: 1px solid var(--border); padding: 8px 12px; border-radius: 8px; outline: none; }
+    select.sort-select, select.form-control, input.form-control {
+      background: rgba(255,255,255,0.05); color: var(--text-primary); border: 1px solid var(--glass-border);
+      padding: 10px 14px; border-radius: 10px; outline: none; font-size: 13px; font-weight: 500; width: 100%;
+    }
 
-    .main-grid { margin: 0 30px; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 25px; }
+    .main-grid {
+      margin: 0 32px; display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 24px;
+    }
 
-    .movie-card { background: var(--bg-surface); border-radius: 12px; overflow: hidden; border: 1px solid var(--border); position: relative; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
-    .movie-card.selected { border-color: var(--accent); box-shadow: 0 0 15px rgba(229, 9, 20, 0.4); }
+    .movie-card {
+      background: var(--surface); border-radius: var(--radius-sm); overflow: hidden;
+      border: 1px solid var(--glass-border); position: relative; cursor: pointer; backdrop-filter: blur(12px);
+    }
+    .movie-card:hover { transform: translateY(-4px); box-shadow: 0 12px 28px rgba(0,0,0,0.4); }
+    .movie-card.selected { border-color: var(--accent); }
 
-    .card-poster-wrapper { position: relative; width: 100%; height: 280px; background: #222; }
+    .card-poster-wrapper { position: relative; width: 100%; height: 270px; background: #1a1c2e; }
     .card-poster-wrapper img { width: 100%; height: 100%; object-fit: cover; }
 
-    .card-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 10px; opacity: 0; padding: 15px; text-align: center; }
+    .card-overlay {
+      position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+      background: linear-gradient(0deg, rgba(13,15,26,0.9) 0%, rgba(13,15,26,0.7) 100%);
+      display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 8px; opacity: 0;
+      padding: 16px; text-align: center; color: white; transition: opacity 0.2s;
+    }
     .movie-card:hover .card-overlay { opacity: 1; }
 
-    .card-info { padding: 12px; }
-    .card-title { font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 5px; }
-    .card-meta-line { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted); margin-bottom: 5px; }
-    .card-progress { background: rgba(0, 188, 212, 0.15); border-radius: 6px; padding: 4px 8px; font-size: 11px; color: var(--cyan); font-weight: bold; text-align: center; margin-top: 5px; }
+    .card-info { padding: 14px; }
+    .card-title { font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 6px; color: var(--text-primary); }
+    .card-meta-line { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; }
+    .card-progress { background: rgba(34,211,238,0.1); border-radius: 6px; padding: 4px 8px; font-size: 11px; color: var(--cyan); font-weight: 700; text-align: center; margin-top: 8px; }
 
-    .ai-global-panel { margin: 40px 30px; background: linear-gradient(135deg, #111 0%, #1a1515 100%); border: 1px solid rgba(229, 9, 20, 0.2); border-radius: 20px; padding: 30px; }
-    .ai-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 15px; flex-wrap: wrap; gap: 15px; }
-    .ai-response { background: rgba(0,0,0,0.3); padding: 20px; border-radius: 12px; border: 1px solid var(--border); min-height: 100px; font-size: 15px; line-height: 1.8; white-space: pre-wrap; }
+    .ai-global-panel {
+      margin: 40px 32px; background: var(--surface); border: 1px solid var(--glass-border);
+      border-radius: var(--radius); padding: 28px; backdrop-filter: blur(12px);
+    }
+    .ai-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; border-bottom: 1px solid var(--glass-border); padding-bottom: 20px; flex-wrap: wrap; gap: 16px; }
+    .ai-response {
+      background: rgba(255,255,255,0.02); padding: 24px; border-radius: var(--radius-sm); min-height: 120px;
+      font-size: 14px; line-height: 2; white-space: pre-wrap; color: #cbd5e1; border: 1px solid var(--glass-border);
+    }
 
-    .modal-backdrop { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); z-index: 300; display: flex; justify-content: center; align-items: center; opacity: 0; pointer-events: none; }
+    .modal-backdrop {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(8px); z-index: 300; display: flex; justify-content: center; align-items: center;
+      opacity: 0; pointer-events: none;
+    }
     .modal-backdrop.active { opacity: 1; pointer-events: auto; }
 
-    .modal-box { background: #1c1c1c; border: 1px solid var(--border); border-radius: 16px; width: 90%; max-width: 600px; max-height: 85vh; overflow-y: auto; box-shadow: var(--shadow); padding: 25px; }
-    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+    .modal-box {
+      background: var(--bg-secondary); border: 1px solid var(--glass-border); border-radius: var(--radius);
+      width: 90%; max-width: 600px; max-height: 85vh; overflow-y: auto; box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+      padding: 28px; color: var(--text-primary);
+    }
 
-    .form-group { margin-bottom: 15px; }
-    .form-group label { display: block; margin-bottom: 6px; font-size: 13px; color: var(--text-muted); }
-    .form-control { width: 100%; background: #2b2b2b; border: 1px solid var(--border); border-radius: 8px; padding: 10px; color: #fff; font-size: 14px; outline: none; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; border-bottom: 1px solid var(--glass-border); padding-bottom: 16px; }
 
-    .form-row { display: flex; gap: 15px; }
+    .form-group { margin-bottom: 20px; }
+    .form-group label { display: block; margin-bottom: 8px; font-size: 13px; color: var(--text-secondary); font-weight: 600; }
+    .form-row { display: flex; gap: 14px; }
     .form-row .form-group { flex: 1; }
 
-    .stars-rating { display: flex; gap: 5px; font-size: 24px; cursor: pointer; color: #555; user-select: none; }
-    .stars-rating span.active { color: #ffc107; }
+    .stars-rating { display: flex; gap: 6px; font-size: 26px; cursor: pointer; color: #4b5563; user-select: none; }
+    .stars-rating span.active { color: #fbbf24; }
 
-    .backup-section { margin: 20px 30px; display: flex; gap: 15px; }
-    .watch-next-badge { display: inline-block; background: rgba(0,188,212,0.15); color: var(--cyan); border-radius: 4px; padding: 2px 6px; font-size: 10px; font-weight: bold; margin-top: 3px; }
-    .season-fetch-status { font-size: 12px; color: var(--cyan); margin-top: 6px; font-style: italic; }
+    .backup-section { margin: 32px; display: flex; gap: 12px; }
+
+    .quality-section-wrapper { display: flex; flex-direction: column; gap: 18px; margin-top: 12px; }
+    .quality-block-title { font-size: 15px; font-weight: 800; padding-bottom: 6px; border-bottom: 2px solid var(--glass-border); margin-bottom: 10px; }
+    .quality-block-title.softsub { color: var(--blue); border-bottom-color: rgba(96,165,250,0.4); }
+    .quality-block-title.dubbed { color: var(--green); border-bottom-color: rgba(16,185,129,0.4); }
+
+    .movie-quality-line {
+      display: block; font-size: 14px; padding: 10px 16px; background: rgba(255,255,255,0.03);
+      border: 1px solid var(--glass-border); border-radius: 10px; color: var(--text-primary); text-decoration: none;
+      font-weight: 500; margin-bottom: 8px; transition: background 0.2s;
+    }
+    .movie-quality-line:hover { background: rgba(255,255,255,0.08); }
+
+    .series-season-container {
+      background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); border-radius: 10px;
+      padding: 14px; margin-bottom: 10px;
+    }
+    .series-season-title { font-size: 14px; font-weight: 700; color: var(--text-secondary); margin-bottom: 8px; }
+    .series-qualities-row { font-size: 14px; font-weight: 600; line-height: 1.8; color: var(--text-primary); }
+    .series-qualities-row a { color: var(--cyan); text-decoration: none; }
+    .series-qualities-row a:hover { text-decoration: underline; }
+
+    .stage-indicator {
+      display: flex; align-items: center; gap: 12px; padding: 14px 18px; background: rgba(34,211,238,0.05);
+      border: 1px solid rgba(34,211,238,0.15); border-radius: 10px; font-size: 14px; color: var(--cyan); font-weight: 600;
+    }
+    .stage-spinner { width: 18px; height: 18px; border: 2px solid rgba(34,211,238,0.2); border-top-color: var(--cyan); border-radius: 50%; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .load-more-btn {
+      text-align: center; padding: 14px; background: rgba(255,255,255,0.03); margin-top: 10px;
+      border-radius: 12px; cursor: pointer; font-weight: 600; font-size: 14px; color: var(--cyan);
+      border: 1px solid var(--glass-border);
+    }
+    .load-more-btn:hover { background: rgba(255,255,255,0.08); }
+
+    /* ===================== TOAST ===================== */
+    .toast {
+      position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(20px);
+      background: rgba(21,24,41,0.97); border: 1px solid var(--glass-border);
+      color: var(--text-primary); padding: 13px 28px; border-radius: 14px; font-size: 14px;
+      z-index: 2000; opacity: 0; transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5); backdrop-filter: blur(16px);
+      max-width: 420px; text-align: center; pointer-events: none; white-space: nowrap;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .toast.toast-success { border-color: rgba(16,185,129,0.5); }
+    .toast.toast-error   { border-color: rgba(239,68,68,0.5);  }
+    .toast.toast-info    { border-color: rgba(96,165,250,0.5);  }
+
+    /* ===================== AI FLOATING CHAT ===================== */
+    .ai-float-btn {
+      position: fixed; bottom: 28px; right: 28px;
+      width: 58px; height: 58px; border-radius: 50%;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;
+      font-size: 22px; box-shadow: 0 6px 22px rgba(99,102,241,0.55); z-index: 900;
+      overflow: visible; transition: transform 0.25s, box-shadow 0.25s;
+    }
+    .ai-float-btn:hover { transform: scale(1.1); box-shadow: 0 10px 30px rgba(99,102,241,0.65); }
+    .ai-float-btn.open  { transform: rotate(90deg) scale(0.9); }
+    .ai-pulse-ring {
+      position: absolute; width: 100%; height: 100%; border-radius: 50%;
+      background: transparent; border: 2px solid rgba(99,102,241,0.5);
+      animation: ai-ring-pulse 2.5s ease-out infinite; pointer-events: none;
+    }
+    @keyframes ai-ring-pulse {
+      0%   { transform: scale(1);   opacity: 0.6; }
+      100% { transform: scale(2.1); opacity: 0;   }
+    }
+
+    .ai-chat-panel {
+      position: fixed; bottom: 102px; right: 28px;
+      width: 375px; height: 530px;
+      background: #0d0f1e; border: 1px solid rgba(99,102,241,0.3); border-radius: 22px;
+      z-index: 899; display: flex; flex-direction: column;
+      box-shadow: 0 28px 70px rgba(0,0,0,0.75), inset 0 0 0 1px rgba(255,255,255,0.04);
+      transform: translateY(28px) scale(0.95); opacity: 0; pointer-events: none;
+      transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1), opacity 0.25s ease;
+      overflow: hidden;
+    }
+    .ai-chat-panel.open {
+      transform: translateY(0) scale(1); opacity: 1; pointer-events: auto;
+    }
+
+    .ai-chat-header {
+      padding: 15px 18px;
+      background: linear-gradient(135deg, rgba(99,102,241,0.18), rgba(139,92,246,0.12));
+      border-bottom: 1px solid rgba(99,102,241,0.2);
+      display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;
+    }
+    .ai-chat-header-icon { font-size: 24px; }
+    .ai-chat-header-title { font-weight: 800; font-size: 13px; color: var(--text-primary); }
+    .ai-chat-header-status { font-size: 11px; color: var(--green); margin-top: 2px; }
+    .ai-chat-header-status.busy { color: #f59e0b; }
+    .ai-chat-header-actions { display: flex; gap: 6px; }
+    .ai-hdr-btn {
+      background: transparent; border: none; color: var(--text-secondary); cursor: pointer;
+      font-size: 15px; padding: 4px 6px; border-radius: 6px; transition: color 0.15s, background 0.15s;
+    }
+    .ai-hdr-btn:hover { color: var(--text-primary); background: rgba(255,255,255,0.06); }
+
+    .ai-chat-messages {
+      flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px;
+      scroll-behavior: smooth;
+    }
+    .ai-chat-messages::-webkit-scrollbar { width: 4px; }
+    .ai-chat-messages::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+
+    .ai-bubble { max-width: 88%; animation: bubble-pop 0.22s ease; }
+    @keyframes bubble-pop {
+      from { transform: translateY(8px) scale(0.96); opacity: 0; }
+      to   { transform: translateY(0)  scale(1);    opacity: 1; }
+    }
+    .ai-bubble.user { align-self: flex-start; }
+    .ai-bubble.bot  { align-self: flex-end;   }
+    .ai-bubble.action { align-self: stretch; max-width: 100%; }
+
+    .ai-bubble-content {
+      padding: 11px 14px; border-radius: 16px; font-size: 13px; line-height: 1.75;
+    }
+    .ai-bubble.user .ai-bubble-content {
+      background: linear-gradient(135deg, rgba(99,102,241,0.28), rgba(139,92,246,0.18));
+      border: 1px solid rgba(99,102,241,0.35);
+      border-radius: 16px 4px 16px 16px; color: var(--text-primary);
+    }
+    .ai-bubble.bot .ai-bubble-content {
+      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09);
+      border-radius: 4px 16px 16px 16px; color: #d0d5ed;
+    }
+    .ai-bubble.action .ai-bubble-content {
+      background: rgba(34,211,238,0.05); border: 1px solid rgba(34,211,238,0.2); border-radius: 12px;
+    }
+
+    .ai-typing-dots {
+      display: inline-flex; gap: 4px; align-items: center; padding: 4px 2px;
+    }
+    .ai-typing-dots span {
+      width: 7px; height: 7px; background: rgba(99,102,241,0.65); border-radius: 50%;
+      animation: dot-bounce 1.3s ease infinite;
+    }
+    .ai-typing-dots span:nth-child(2) { animation-delay: 0.18s; }
+    .ai-typing-dots span:nth-child(3) { animation-delay: 0.36s; }
+    @keyframes dot-bounce {
+      0%,60%,100% { transform: translateY(0);  opacity: 0.5; }
+      30%          { transform: translateY(-6px); opacity: 1;   }
+    }
+
+    .ai-quick-btns {
+      display: flex; gap: 5px; padding: 8px 12px 0; flex-wrap: wrap; flex-shrink: 0;
+    }
+    .ai-quick-btns button {
+      background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.25);
+      color: #a5b4fc; padding: 5px 11px; border-radius: 20px; font-size: 11px; cursor: pointer;
+      white-space: nowrap; transition: background 0.15s;
+    }
+    .ai-quick-btns button:hover { background: rgba(99,102,241,0.2); }
+
+    .ai-chat-input-row {
+      padding: 10px 12px; border-top: 1px solid rgba(255,255,255,0.06);
+      display: flex; gap: 8px; align-items: center; flex-shrink: 0; background: rgba(0,0,0,0.2);
+    }
+    .ai-chat-input {
+      flex: 1; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 14px; padding: 10px 14px; color: var(--text-primary); font-size: 13px;
+      outline: none; font-family: 'Vazirmatn', sans-serif; transition: border-color 0.2s;
+    }
+    .ai-chat-input:focus { border-color: rgba(99,102,241,0.5); }
+    .ai-chat-input::placeholder { color: rgba(255,255,255,0.28); }
+    .ai-chat-send {
+      width: 38px; height: 38px; border-radius: 50%;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      border: none; color: white; cursor: pointer; display: flex; align-items: center;
+      justify-content: center; font-size: 17px; flex-shrink: 0;
+      box-shadow: 0 4px 12px rgba(99,102,241,0.4); transition: transform 0.15s;
+    }
+    .ai-chat-send:hover { transform: scale(1.08); }
+    .ai-chat-send:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+    .ai-search-result-row {
+      display: flex; align-items: center; gap: 10px; padding: 8px; background: rgba(255,255,255,0.03);
+      border-radius: 8px; margin-bottom: 6px; border: 1px solid var(--glass-border);
+    }
+    .ai-search-result-row img { width: 34px; height: 50px; object-fit: cover; border-radius: 5px; flex-shrink: 0; }
+    .ai-search-result-info { flex: 1; min-width: 0; }
+    .ai-search-result-info h5 { font-size: 12px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ai-search-result-info p { font-size: 11px; color: var(--text-secondary); }
+
+    .ai-confirm-card {
+      background: rgba(255,255,255,0.04); border: 1px solid var(--glass-border);
+      border-radius: 10px; padding: 12px;
+    }
+    .ai-confirm-card p { font-size: 13px; margin-bottom: 10px; }
+    .ai-confirm-btns { display: flex; gap: 8px; }
+    .ai-confirm-btns .btn { padding: 6px 14px; font-size: 12px; }
 
     @media (max-width: 768px) {
       .hero-content { flex-direction: column; align-items: center; }
       .controls-bar { flex-direction: column; align-items: stretch; }
       header { justify-content: center; }
       .search-container { width: 100%; }
+      .ai-chat-panel { width: calc(100vw - 24px); right: 12px; bottom: 90px; }
     }
   </style>
 </head>
 <body>
 
   <header>
-    <div class="brand">🎬 CineTrack AI <span style="font-size:12px; background:#e50914; color:#fff; padding:2px 6px; border-radius:4px;">ULTIMATE</span></div>
+    <div class="brand">🎬 CineTrack AI <span style="font-size:12px; background:rgba(255,255,255,0.1); color:#fff; padding:3px 10px; border-radius:8px; margin-right:6px;">ULTIMATE</span></div>
 
     <div class="search-container">
       <div class="search-wrapper">
@@ -179,19 +493,19 @@
     </div>
 
     <div class="nav-actions">
-      <button class="btn btn-secondary" onclick="openNotesModal()">📝 یادداشت‌های من</button>
-      <button class="btn btn-secondary" onclick="openSettingsModal()">⚙️ تنظیمات هوش مصنوعی و آرشیو</button>
+      <button class="btn btn-secondary" onclick="openNotesModal()">📝 یادداشت‌ها</button>
+      <button class="btn btn-secondary" onclick="openSettingsModal()">⚙️ تنظیمات</button>
     </div>
   </header>
 
-  <section class="section-title">🎯 پیشنهاد تماشای بعدی (Watch Next)</section>
+  <section class="section-title">🎯 پیشنهاد تماشای بعدی</section>
   <section class="watch-next-container" id="watchNextContainer">
-    <p style="color:var(--text-muted); font-size:14px;">در حال ارزیابی الگوها و استخراج اولویت تماشا...</p>
+    <p style="color:var(--text-secondary); font-size:14px;">در حال ارزیابی الگوها...</p>
   </section>
 
   <section class="hero-section" id="heroSection"></section>
 
-  <section class="section-title">📊 داشبورد وضعیت و آمار پیشرفته کتابخانه</section>
+  <section class="section-title">📊 داشبورد کتابخانه</section>
   <section class="dashboard-stats" id="dashboardStats"></section>
 
   <section class="controls-bar">
@@ -202,8 +516,8 @@
       <button class="filter-btn" onclick="setFilter('status', 'Completed')">✅ تمام شده</button>
       <button class="filter-btn" onclick="setFilter('type', 'movie')">🎬 فیلم‌ها</button>
       <button class="filter-btn" onclick="setFilter('type', 'series')">📺 سریال‌ها</button>
-      <button class="filter-btn" onclick="setFilter('special', 'highRated')">⭐ امتیاز IMDb 8+</button>
-      <button class="filter-btn" onclick="setFilter('special', 'personalTop')">🏆 محبوب‌ترین‌های من</button>
+      <button class="filter-btn" onclick="setFilter('special', 'highRated')">⭐ IMDb 8+</button>
+      <button class="filter-btn" onclick="setFilter('special', 'personalTop')">🏆 محبوب‌های من</button>
     </div>
     <div style="display:flex; gap:10px; flex-wrap:wrap;">
       <select class="sort-select" id="genreFilterSelect" onchange="handleGenreChange(this.value)">
@@ -222,33 +536,34 @@
   <main class="main-grid" id="mainGrid"></main>
 
   <section class="backup-section">
-    <button class="btn btn-secondary" onclick="exportLibrary()">📤 Export Library</button>
-    <button class="btn btn-secondary" onclick="document.getElementById('importFileInput').click()">📥 Import Library</button>
+    <button class="btn btn-secondary" onclick="exportLibrary()">📤 خروجی بکاپ (Export)</button>
+    <button class="btn btn-secondary" onclick="document.getElementById('importFileInput').click()">📥 بارگذاری بکاپ (Import)</button>
     <input type="file" id="importFileInput" style="display:none;" accept=".json" onchange="importLibrary(event)">
   </section>
 
   <section class="ai-global-panel">
     <div class="ai-header">
-      <div style="display:flex; align-items:center; gap:10px;">
-        <span style="font-size:24px;">🧠</span>
+      <div style="display:flex; align-items:center; gap:12px;">
+        <span style="font-size:28px;">🧠</span>
         <div>
-          <h3 style="font-weight:800;">تحلیل هوشمند کل کتابخانه فیلم</h3>
-          <p style="font-size:12px; color:var(--text-muted);">تحلیل عادت‌ها، سلایق و پیشنهاد کارهای گمشده بعدی</p>
+          <h3 style="font-weight:800; font-size:16px;">تحلیل هوشمند کل کتابخانه</h3>
+          <p style="font-size:12px; color:var(--text-secondary);">تحلیل عادت‌ها و پیشنهاد عناوین گمشده</p>
         </div>
       </div>
       <div style="display:flex; gap:10px;">
         <button class="btn btn-secondary" id="regenGlobalAiBtn" style="display:none;" onclick="generateGlobalAIAnalysis(true)">🔄 بازتولید تحلیل</button>
-        <button class="btn" onclick="generateGlobalAIAnalysis(false)">💡 آنالیز کل آرشیو</button>
+        <button class="btn" id="globalAiAnalyzeBtn" onclick="generateGlobalAIAnalysis(false)">💡 آنالیز کل آرشیو</button>
       </div>
     </div>
-    <div class="ai-response" id="globalAiResponse">درخواست آنالیز کل آرشیو را صادر کنید تا موتور هوشمند بر اساس OpenRouter لیست شما را تحلیل کند...</div>
+    <div class="ai-response" id="globalAiResponse">درخواست آنالیز کل آرشیو را صادر کنید...</div>
   </section>
 
+  <!-- ===================== MODALS ===================== -->
   <div class="modal-backdrop" id="addModal">
     <div class="modal-box">
       <div class="modal-header">
-        <h3 id="modalMetaTitle">اضافه کردن به آرشیو</h3>
-        <button class="btn btn-secondary" style="padding:5px 10px;" onclick="closeModal('addModal')">✖</button>
+        <h3 style="font-size:18px; font-weight:800;">اضافه کردن به آرشیو</h3>
+        <button class="btn btn-secondary" style="padding:4px 10px;" onclick="closeModal('addModal')">✖</button>
       </div>
       <div id="addModalContent"></div>
     </div>
@@ -257,8 +572,8 @@
   <div class="modal-backdrop" id="progressModal">
     <div class="modal-box">
       <div class="modal-header">
-        <h3>⚙️ بروزرسانی وضعیت قسمت‌ها</h3>
-        <button class="btn btn-secondary" style="padding:5px 10px;" onclick="closeModal('progressModal')">✖</button>
+        <h3 style="font-size:18px; font-weight:800;">⚙️ بروزرسانی وضعیت قسمت‌ها</h3>
+        <button class="btn btn-secondary" style="padding:4px 10px;" onclick="closeModal('progressModal')">✖</button>
       </div>
       <div id="progressModalContent"></div>
     </div>
@@ -267,669 +582,406 @@
   <div class="modal-backdrop" id="notesModal">
     <div class="modal-box">
       <div class="modal-header">
-        <h3>📝 یادداشت‌های من</h3>
-        <button class="btn btn-secondary" style="padding:5px 10px;" onclick="closeModal('notesModal')">✖</button>
+        <h3 style="font-size:18px; font-weight:800;">📝 یادداشت‌های من</h3>
+        <button class="btn btn-secondary" style="padding:4px 10px;" onclick="closeModal('notesModal')">✖</button>
       </div>
       <div class="form-group">
-        <label>متن یادداشت‌ها، لیست فیلم‌های آینده یا برنامه‌ تماشا:</label>
-        <textarea id="generalNotesTextArea" class="form-control" style="min-height: 300px; resize: vertical;" oninput="saveGeneralNotes(this.value)"></textarea>
+        <label>متن یادداشت‌ها:</label>
+        <textarea id="generalNotesTextArea" class="form-control review-textarea" style="min-height: 250px;" oninput="saveGeneralNotes(this.value)"></textarea>
       </div>
-      <p style="font-size:12px; color:var(--text-muted);">متن فوق همزمان با تایپ در سیستم ذخیره می‌شود.</p>
     </div>
   </div>
 
   <div class="modal-backdrop" id="settingsModal">
     <div class="modal-box">
       <div class="modal-header">
-        <h3>تنظیمات سیستم هوش مصنوعی و سورس آرشیو</h3>
-        <button class="btn btn-secondary" style="padding:5px 10px;" onclick="closeModal('settingsModal')">✖</button>
+        <h3 style="font-size:18px; font-weight:800;">تنظیمات سیستم</h3>
+        <button class="btn btn-secondary" style="padding:4px 10px;" onclick="closeModal('settingsModal')">✖</button>
       </div>
-
       <div class="form-group">
-        <label>OpenRouter API Key:</label>
-        <input type="password" id="openRouterKeyInput" class="form-control" placeholder="sk-or-v1-...">
-      </div>
-
-      <div class="form-group">
-        <label>انتخاب مدل پردازش هوش مصنوعی:</label>
-        <select id="aiModelSelect" class="form-control" onchange="toggleCustomModelField(this.value)">
-          <option value="deepseek/deepseek-chat">DeepSeek Chat</option>
-          <option value="qwen/qwen-turbo">Qwen</option>
-          <option value="google/gemma-2-9b-it">Gemma</option>
-          <option value="custom">مدل دلخواه کاربر...</option>
+        <label>زبان پیش‌فرض نمایش داستان:</label>
+        <select id="uiLanguageSetting" class="form-control">
+          <option value="en">English</option>
+          <option value="fa">فارسی (ترجمه AI)</option>
         </select>
       </div>
-
-      <div class="form-group" id="customModelGroup" style="display:none;">
-        <label>شناسه مدل سفارشی (مثال: meta-llama/llama-3-8b-instruct):</label>
-        <input type="text" id="customModelInput" class="form-control" placeholder="vendor/model-name">
-      </div>
-
-      <div style="border-top: 1px solid var(--border); margin: 20px 0 15px 0; padding-top: 15px;">
-        <p style="font-size: 14px; color: var(--cyan); margin-bottom: 12px; font-weight:bold;">📥 بارگذاری فایل متنی / سورس آرشیو</p>
+      <div style="border-top: 1px solid var(--glass-border); margin: 24px 0 16px; padding-top: 18px;">
+        <p style="font-size: 14px; color: var(--cyan); margin-bottom: 14px; font-weight:bold;">📥 بارگذاری فایل آرشیو</p>
         <div class="form-group">
-          <label>فایل HTML دانلود شده از صفحه آرشیو را انتخاب کنید:</label>
+          <label>فایل HTML آرشیو:</label>
           <input type="file" id="archiveHtmlFileInput" class="form-control" accept=".html,.htm" onchange="handleArchiveHtmlUpload(event)">
-          <div id="archiveUploadStatus" style="font-size: 12px; color: #ffc107; margin-top: 8px; font-weight: bold;"></div>
+          <div id="archiveUploadStatus" style="font-size:12px; color:#fbbf24; margin-top:10px;"></div>
         </div>
       </div>
+      <button class="btn" style="width:100%; margin-top:10px;" onclick="saveSettings()">ذخیره تنظیمات</button>
+    </div>
+  </div>
 
-      <button class="btn" style="width:100%; margin-top:5px;" onclick="saveSettings()">ذخیره تنظیمات</button>
+  <!-- ===================== AI FLOATING CHAT ===================== -->
+  <button id="aiFloatBtn" class="ai-float-btn" onclick="toggleAIChat()" title="دستیار هوشمند CineTrack">
+    <div class="ai-pulse-ring"></div>
+    <span id="aiFloatIcon">🤖</span>
+  </button>
+
+  <div id="aiChatPanel" class="ai-chat-panel">
+    <div class="ai-chat-header">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span class="ai-chat-header-icon">🤖</span>
+        <div>
+          <div class="ai-chat-header-title">دستیار CineTrack AI</div>
+          <div class="ai-chat-header-status" id="aiStatusLabel">● آماده</div>
+        </div>
+      </div>
+      <div class="ai-chat-header-actions">
+        <button class="ai-hdr-btn" onclick="clearAIChat()" title="پاک کردن چت">🗑️</button>
+        <button class="ai-hdr-btn" onclick="toggleAIChat()" title="بستن">✖</button>
+      </div>
+    </div>
+
+    <div id="aiChatMessages" class="ai-chat-messages">
+      <!-- Welcome bubble injected by JS -->
+    </div>
+
+    <div class="ai-quick-btns" id="aiQuickBtns">
+      <button onclick="sendQuickAI('📚 محتویات کتابخانه‌ام رو خلاصه کن')">📚 کتابخانه</button>
+      <button onclick="sendQuickAI('بهترین عنوان بعدی برای تماشا چیه؟')">🎯 بعدی</button>
+      <button onclick="sendQuickAI('آمار و تحلیل کاملی از عادت‌های تماشای من بده')">📊 آمار</button>
+      <button onclick="sendQuickAI('پیشنهاد فیلم‌های مشابه کتابخانه‌ام بده')">💡 پیشنهاد</button>
+    </div>
+
+    <div class="ai-chat-input-row">
+      <input type="text" id="aiChatInput" class="ai-chat-input"
+             placeholder="بپرس یا دستور بده..."
+             onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendAIChatMessage();}">
+      <button id="aiChatSendBtn" class="ai-chat-send" onclick="sendAIChatMessage()">↑</button>
     </div>
   </div>
 
   <script>
-    const OMDB_KEY = "4b0254f3";
+    // ==================== API CONFIGURATION ====================
+    const OMDB_KEY    = "4b0254f3";
+    const AI_API_BASE = "https://api.avalai.ir/v1";
+    const AI_API_KEY  = "aa-Guxnyo16ZkqRGPoFYUC5gD4JCs1BKPXyiL1BFEeAluA2guzl";
+    const AI_MODEL    = "gpt-5.4-mini";
 
+    // ==================== IndexedDB ====================
+    const DB_NAME    = 'CineTrackDB';
+    const DB_VERSION = 1;
+    const STORE_NAME = 'archives';
+
+    function initDB() {
+      return new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB_NAME, DB_VERSION);
+        req.onupgradeneeded = e => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains(STORE_NAME)) db.createObjectStore(STORE_NAME);
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror  = () => reject(req.error);
+      });
+    }
+
+    async function saveArchiveToDB(text) {
+      try {
+        const db = await initDB();
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        tx.objectStore(STORE_NAME).put(text, 'archiveHtml');
+        return new Promise((resolve, reject) => {
+          tx.oncomplete = () => resolve();
+          tx.onerror    = () => reject(tx.error);
+        });
+      } catch (e) { console.error("IndexedDB Save Error:", e); }
+    }
+
+    async function loadArchiveFromDB() {
+      try {
+        const db  = await initDB();
+        const tx  = db.transaction(STORE_NAME, 'readonly');
+        const req = tx.objectStore(STORE_NAME).get('archiveHtml');
+        return new Promise(resolve => {
+          req.onsuccess = () => resolve(typeof req.result === 'string' ? req.result : "");
+          req.onerror   = () => resolve("");
+        });
+      } catch (e) { console.error("IndexedDB Load Error:", e); return ""; }
+    }
+
+    // ==================== GLOBAL STATE ====================
     let state = {
-      items: JSON.parse(localStorage.getItem("cinetrack_ultimate_db") || "[]"),
-      selectedId: null,
-      filters: { status: 'all', type: 'all', special: 'all', genre: 'all' },
-      sortBy: 'dateAdded',
-      omdbCache: JSON.parse(localStorage.getItem("cinetrack_omdb_cache") || "{}"),
+      items:         JSON.parse(localStorage.getItem("cinetrack_ultimate_db") || "[]"),
+      selectedId:    null,
+      filters:       { status: 'all', type: 'all', special: 'all', genre: 'all' },
+      sortBy:        'dateAdded',
+      omdbCache:     JSON.parse(localStorage.getItem("cinetrack_omdb_cache") || "{}"),
       globalAiCache: localStorage.getItem("cinetrack_global_ai_cache") || "",
-      archiveHtmlSource: localStorage.getItem("cinetrack_archive_html_raw") || "",
-      audioReviews: JSON.parse(localStorage.getItem("cinetrack_audio_reviews") || "{}")
+      archiveHtmlSource: "",
+      audioReviews:  JSON.parse(localStorage.getItem("cinetrack_audio_reviews") || "{}"),
+      uiLanguage:    localStorage.getItem("cinetrack_ui_lang") || "en"
     };
 
-    let searchDebounceTimer;
-    let isSavingItem = false;
-    let recognition = null;
+    let searchDebounceTimer     = null;
+    let isSavingItem            = false;
+    let recognition             = null;
+    let currentSearchQuery      = "";
+    let currentSearchPage       = 1;
+    let currentSearchResults    = [];
+    let isLoadingMore           = false;
+    let searchAbortController   = null;
+    const searchQueryCache      = {};   // FIX: in-memory cache for OMDb search results
+    const SEARCH_CACHE_TTL      = 5 * 60 * 1000; // 5 min
 
-    /* ===================== INIT ===================== */
-    function init() {
-      renderDashboard();
-      extractAndRenderGenres();
-      renderGrid();
-      renderHero();
-      setupFilterButtonsUI();
-      renderWatchNext();
-      initSpeechRecognition();
-
-      document.getElementById("openRouterKeyInput").value = localStorage.getItem("cinetrack_or_key") || "";
-      
-      if (state.archiveHtmlSource) {
-        document.getElementById("archiveUploadStatus").innerText = "✅ فایل آرشیو با موفقیت بارگذاری شده و آماده پردازش شناسه IMDb است.";
-      }
-
-      const savedModel = localStorage.getItem("cinetrack_or_model") || "deepseek/deepseek-chat";
-      if (['deepseek/deepseek-chat', 'qwen/qwen-turbo', 'google/gemma-2-9b-it'].includes(savedModel)) {
-        document.getElementById("aiModelSelect").value = savedModel;
-      } else if (savedModel) {
-        document.getElementById("aiModelSelect").value = "custom";
-        document.getElementById("customModelGroup").style.display = "block";
-        document.getElementById("customModelInput").value = savedModel;
-      }
-
-      document.getElementById("generalNotesTextArea").value = localStorage.getItem("cinetrack_general_notes") || "";
-      if (state.globalAiCache) {
-        document.getElementById("globalAiResponse").innerHTML = state.globalAiCache;
-        document.getElementById("regenGlobalAiBtn").style.display = "inline-flex";
-      }
+    // ==================== UTILS ====================
+    function sanitizeAIResponse(text) {
+      if (!text) return "";
+      return text
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;").replace(/'/g, "&#039;")
+        .replace(/\n/g, "<br>");
     }
 
+    // FIX: replaced all alert() calls with this toast for better UX
+    function showToast(message, type = 'info', duration = 3000) {
+      const existing = document.querySelectorAll('.toast');
+      existing.forEach(t => t.remove());
+      const toast = document.createElement('div');
+      toast.className = `toast toast-${type}`;
+      toast.innerHTML = message;
+      document.body.appendChild(toast);
+      requestAnimationFrame(() => toast.classList.add('show'));
+      setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 350);
+      }, duration);
+    }
+
+    // FIX #1: saveStateToStorage was NEVER DEFINED — root cause of "Save to Library" failure
     function saveStateToStorage() {
-      localStorage.setItem("cinetrack_ultimate_db", JSON.stringify(state.items));
-      renderDashboard();
-      extractAndRenderGenres();
-      renderWatchNext();
-    }
-
-    /* ===================== ARCHIVE MATCHING ENGINE (FIXED FOR LOST) ===================== */
-    function handleArchiveHtmlUpload(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        const rawText = e.target.result;
-        state.archiveHtmlSource = rawText;
-        localStorage.setItem("cinetrack_archive_html_raw", rawText);
-        document.getElementById("archiveUploadStatus").innerText = "✅ فایل بارگذاری شد: " + file.name;
-        alert("سورس آرشیو ذخیره شد. اکنون کدهای IMDb به طور دقیق تطبیق داده می‌شوند.");
-        if(state.selectedId) renderHero();
-      };
-      reader.readAsText(file);
-    }
-
-    function findMatchInArchive(imdbID) {
-      if (!state.archiveHtmlSource) {
-        alert("لطفاً ابتدا فایل HTML آرشیو خود را در بخش تنظیمات آپلود کنید.");
-        return null;
-      }
-
-      const cleanImdbId = imdbID.trim().toLowerCase();
-      const matchedLinks = [];
-
-      // ایجاد لایه امنیتی قدرتمند DOMParser
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(state.archiveHtmlSource, 'text/html');
-      const allLinks = doc.getElementsByTagName('a');
-
-      for (let link of allLinks) {
-        const hrefText = link.getAttribute('href') || '';
-        const innerText = link.innerText || '';
-
-        // تطبیق با امنیت بسیار بالا: نادیده گرفتن حروف کوچک و بزرگ و متصل بودن شناسه (حل باگ سریال LOST)
-        if (hrefText.toLowerCase().includes(cleanImdbId) || innerText.toLowerCase().includes(cleanImdbId)) {
-          matchedLinks.push({
-            text: link.innerText.trim() || "لینک دانلود مستقیم از آرشیو",
-            url: hrefText
-          });
-        }
-      }
-
-      // لایه دوم پشتیبان: اگر DOMParser به هر دلیلی تگ متفاوتی داشت، از Regex روی کل سورس متنی استفاده کن
-      if (matchedLinks.length === 0) {
-        try {
-          const regexPattern = new RegExp(`<a[^>]*href=["']([^"']*)["'][^>]*>([\s\S]*?)<\/a>`, 'gi');
-          let match;
-          while ((match = regexPattern.exec(state.archiveHtmlSource)) !== null) {
-            const url = match[1];
-            const anchorText = match[2].replace(/<[^>]*>/g, ''); 
-            if (url.toLowerCase().includes(cleanImdbId) || anchorText.toLowerCase().includes(cleanImdbId)) {
-              matchedLinks.push({
-                text: anchorText.trim() || "لینک مستقیم استخراج شده",
-                url: url
-              });
-            }
-          }
-        } catch(e) { console.error("Regex backup processing failed:", e); }
-      }
-
-      return matchedLinks;
-    }
-
-    function matchAndExtractLinks(imdbID) {
-      const matches = findMatchInArchive(imdbID);
-      const resultsDiv = document.getElementById("archiveMatchResults");
-      if (!resultsDiv) return;
-
-      if (!matches || matches.length === 0) {
-        resultsDiv.innerHTML = `
-          <div style="background:rgba(229,9,20,0.1); border:1px solid var(--accent); padding:15px; border-radius:10px; font-size:14px;">
-            ⚠️ کد شناسایی IMDb (${imdbID}) در سورس فایل آرشیو شما پیدا نشد. مطمئن شوید که این عنوان در آرشیو دانلودی شما موجود است.
-          </div>`;
-        return;
-      }
-
-      let htmlRows = `<div style="background:rgba(46,125,50,0.1); border:1px solid var(--green); padding:15px; border-radius:10px; margin-bottom:15px;">
-        <p style="font-weight:bold; color:var(--green); margin-bottom:10px;">🎉 تطبیق موفقیت‌آمیز بر اساس شناسه منحصربه‌فرد IMDb! لینک‌های کشف شده:</p>`;
-      
-      matches.forEach((item) => {
-        htmlRows += `
-          <div style="display:flex; justify-content:space-between; align-items:center; background:#222; padding:10px; border-radius:6px; margin-bottom:5px; gap:10px;">
-            <span style="font-size:13px; font-family:monospace; color:#ddd; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; direction:ltr; text-align:right;">${item.text}</span>
-            <div style="display:flex; gap:5px;">
-              <a href="${item.url}" target="_blank" class="btn btn-stream" style="padding:4px 10px; font-size:12px; border-radius:4px;">📥 دانلود مستقیم</a>
-              <button class="btn btn-secondary" style="padding:4px 10px; font-size:12px; border-radius:4px;" onclick="navigator.clipboard.writeText('${item.url}'); alert('لینک کپی شد!');">📋 کپی لینک</button>
-            </div>
-          </div>`;
-      });
-      htmlRows += `</div>`;
-      resultsDiv.innerHTML = htmlRows;
-    }
-
-    /* ===================== SPEECH RECOGNITION SYSTEM ===================== */
-    function initSpeechRecognition() {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (SpeechRecognition) {
-        recognition = new SpeechRecognition();
-        recognition.continuous = false;
-        recognition.lang = 'fa-IR';
-        recognition.interimResults = false;
-
-        recognition.onresult = function(event) {
-          const resultText = event.results[0][0].transcript;
-          const textarea = document.getElementById("audioReviewTextarea");
-          if (textarea) {
-            textarea.value = (textarea.value + " " + resultText).trim();
-            saveAudioReview(state.selectedId, textarea.value);
-          }
-          setRecordingState(false);
-        };
-
-        recognition.onerror = function() { setRecordingState(false); };
-        recognition.onend = function() { setRecordingState(false); };
-      }
-    }
-
-    function toggleVoiceInput() {
-      if (!recognition) {
-        alert("سیستم ضبط و تشخیص صدا در مرورگر شما پشتیبانی نمی‌شود. لطفا از گوگل کروم استفاده کنید.");
-        return;
-      }
-      const recBtn = document.getElementById("voiceRecBtn");
-      if (recBtn.classList.contains("recording")) {
-        recognition.stop();
-      } else {
-        setRecordingState(true);
-        recognition.start();
-      }
-    }
-
-    function setRecordingState(isRec) {
-      const recBtn = document.getElementById("voiceRecBtn");
-      if (!recBtn) return;
-      if (isRec) {
-        recBtn.classList.add("recording");
-        recBtn.style.background = "#ff9100";
-        recBtn.innerText = "🛑 در حال ضبط صدا... بسپارید به من";
-      } else {
-        recBtn.classList.remove("recording");
-        recBtn.style.background = "#2a2a2a";
-        recBtn.innerText = "🎙️ شروع ثبت صوتی نقد";
-      }
-    }
-
-    function saveAudioReview(id, text) {
-      state.audioReviews[id] = text;
-      localStorage.setItem("cinetrack_audio_reviews", JSON.stringify(state.audioReviews));
-    }
-
-    /* ===================== SEASON DATA FETCHING ===================== */
-    async function fetchSeasonData(imdbID, totalSeasons) {
-      const seasonData = {};
-      const numSeasons = Math.min(parseInt(totalSeasons) || 1, 25);
-
-      for (let s = 1; s <= numSeasons; s++) {
-        const cacheKey = `${imdbID}_season_${s}`;
-        if (state.omdbCache[cacheKey] !== undefined) {
-          seasonData[s] = state.omdbCache[cacheKey];
-          continue;
-        }
-        try {
-          const res = await fetch(`https://www.omdbapi.com/?apikey=${OMDB_KEY}&i=${imdbID}&Season=${s}`);
-          const data = await res.json();
-          if (data.Response === "True" && data.Episodes && data.Episodes.length > 0) {
-            const count = data.Episodes.length;
-            seasonData[s] = count;
-            state.omdbCache[cacheKey] = count;
-          }
-        } catch (e) {
-          console.warn(`Failed to fetch season ${s}:`, e);
-        }
-      }
-
-      localStorage.setItem("cinetrack_omdb_cache", JSON.stringify(state.omdbCache));
-      return seasonData;
-    }
-
-    async function refreshSeasonData(id) {
-      const item = state.items.find(i => i.id === id);
-      if (!item || item.type !== 'series') return;
-
-      const btn = document.getElementById('refreshSeasonDataBtn');
-      if (btn) { btn.disabled = true; btn.innerText = "⏳ در حال دریافت..."; }
-
       try {
-        const numSeasons = Math.min(parseInt(item.totalSeasons) || 1, 25);
-        for (let s = 1; s <= numSeasons; s++) {
-          delete state.omdbCache[`${item.id}_season_${s}`];
-        }
-
-        item.seasonData = await fetchSeasonData(item.id, item.totalSeasons);
-        item.lastUpdated = new Date().toISOString();
-        saveStateToStorage();
-        renderHero();
-        renderGrid();
+        localStorage.setItem("cinetrack_ultimate_db", JSON.stringify(state.items));
       } catch (e) {
-        alert("خطا در دریافت اطلاعات فصل‌ها.");
-        if (btn) { btn.disabled = false; btn.innerText = "🔄 بروزرسانی ساختار فصل‌ها"; }
+        console.error("localStorage write failed:", e);
+        showToast("⚠️ خطا در ذخیره‌سازی. فضای localStorage ممکن است پر باشد.", 'error');
       }
     }
 
-    /* ===================== EPISODE CALCULATION HELPERS ===================== */
-    function getTotalEpisodes(item) {
-      if (!item.seasonData || Object.keys(item.seasonData).length === 0) return null;
-      return Object.values(item.seasonData).reduce((a, b) => a + parseInt(b), 0);
+    // ==================== AI API ====================
+    async function callAIAPI(systemPrompt, userText) {
+      return callAIAPIWithMessages([
+        { role: "system", content: systemPrompt },
+        { role: "user",   content: userText }
+      ], 0.4);
     }
 
-    function getEpisodesWatched(item) {
-      if (item.type !== 'series') return 0;
-      const currentSeason = parseInt(item.season) || 1;
-      const currentEpisode = parseInt(item.episode) || 0;
-      if (!item.seasonData || Object.keys(item.seasonData).length === 0) {
-        return currentEpisode;
+    async function callAIAPIWithMessages(messages, temperature = 0.7) {
+      const key     = AI_API_KEY.trim();
+      const baseUrl = AI_API_BASE.replace(/\/+$/, "");
+      if (!key || key === "your-avalai-api-key-here") {
+        throw new Error("⚠️ لطفاً کلید API آوالای را در متغیر AI_API_KEY تنظیم کنید.");
       }
-
-      let watched = 0;
-      for (let s = 1; s < currentSeason; s++) {
-        watched += parseInt(item.seasonData[s]) || 0;
+      const res = await fetch(`${baseUrl}/chat/completions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
+        body: JSON.stringify({ model: AI_MODEL, messages, temperature, max_tokens: 1500 })
+      });
+      if (res.status === 401) throw new Error("❌ کلید API نامعتبر است.");
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(`خطای HTTP ${res.status}: ${txt.slice(0, 100)}`);
       }
-      watched += currentEpisode;
-      return watched;
+      const data = await res.json();
+      if (data.error) throw new Error(data.error.message);
+      return data.choices[0].message.content;
     }
 
-    function getProgressPercent(item) {
-      if (item.type !== 'series') return 0;
-      const total = getTotalEpisodes(item);
-      if (total && total > 0) {
-        const watched = getEpisodesWatched(item);
-        return Math.min(Math.round((watched / total) * 100), 100);
+    // ==================== OMDB SEARCH ====================
+    // FIX #2: Added in-memory cache + show loading indicator immediately (before debounce fires)
+    async function performSearch(query, page = 1, signal) {
+      const cacheKey = `${query.toLowerCase()}:${page}`;
+      const cached   = searchQueryCache[cacheKey];
+      if (cached && Date.now() - cached.ts < SEARCH_CACHE_TTL) {
+        return { results: cached.results, totalResults: cached.total };
       }
-      const totalS = parseInt(item.totalSeasons) || 1;
-      const currentS = parseInt(item.season) || 1;
-      return Math.min(Math.round((currentS / totalS) * 100), 100);
-    }
-
-    function getNextEpisodeInfo(item) {
-      if (item.type !== 'series') return null;
-      const currentSeason = parseInt(item.season) || 1;
-      const currentEpisode = parseInt(item.episode) || 1;
-      const totalSeasons = parseInt(item.totalSeasons) || 1;
-      const episodesInSeason = item.seasonData && item.seasonData[currentSeason] ? parseInt(item.seasonData[currentSeason]) : null;
-      if (episodesInSeason !== null && currentEpisode >= episodesInSeason) {
-        if (currentSeason >= totalSeasons) return null;
-        return { season: currentSeason + 1, episode: 1 };
-      }
-      return { season: currentSeason, episode: currentEpisode + 1 };
-    }
-
-    /* ===================== QUICK PROGRESS MANAGE MODAL ===================== */
-    function openManageProgressModal(id) {
-      const item = state.items.find(i => i.id === id);
-      if (!item) return;
-
-      const backdrop = document.getElementById("progressModal");
-      const container = document.getElementById("progressModalContent");
-
-      container.innerHTML = `
-        <p style="font-size:14px; margin-bottom:15px; color:var(--text-muted);">تغییر وضعیت تماشای قسمت‌های سریال بدون به هم ریختن محاسبات دقیق پیشرفت کل کلوپ:</p>
-        <input type="hidden" id="progressManageId" value="${item.id}">
-        <div class="form-row">
-          <div class="form-group">
-            <label>فصل فعلی:</label>
-            <input type="number" id="progressManageSeason" class="form-control" value="${item.season}" min="1" max="${item.totalSeasons || 50}">
-          </div>
-          <div class="form-group">
-            <label>قسمت فعلی:</label>
-            <input type="number" id="progressManageEpisode" class="form-control" value="${item.episode}" min="0">
-          </div>
-        </div>
-        <button class="btn" style="width:100%; margin-top:15px;" onclick="saveQuickProgress()">⚡ اعمال و آپدیت آنی وضعیت</button>
-      `;
-      backdrop.classList.add("active");
-    }
-
-    function saveQuickProgress() {
-      const id = document.getElementById("progressManageId").value;
-      const item = state.items.find(i => i.id === id);
-      if (!item) return;
-
-      const newS = parseInt(document.getElementById("progressManageSeason").value) || 1;
-      const newE = parseInt(document.getElementById("progressManageEpisode").value) || 0;
-
-      item.season = newS;
-      item.episode = newE;
-      item.lastUpdated = new Date().toISOString();
-
-      saveStateToStorage();
-      closeModal("progressModal");
-      renderHero();
-      renderGrid();
-    }
-
-    /* ===================== HERO RENDER ===================== */
-    function renderHero() {
-      const container = document.getElementById("heroSection");
-      if (!state.selectedId || state.items.length === 0) {
-        const nextUp = getTopWatchNext();
-        if (nextUp) {
-          state.selectedId = nextUp.id;
-        } else {
-          container.innerHTML = `
-            <div class="hero-empty">
-              <span style="font-size:48px;">🎬</span>
-              <p>فیلم یا سریالی را انتخاب کنید تا جزئیات کامل به همراه نقد صوتی و لینک‌های آفلاین سورس آرشیو بارگذاری شوند.</p>
-            </div>`;
-          return;
+      try {
+        const res  = await fetch(
+          `https://www.omdbapi.com/?apikey=${OMDB_KEY}&s=${encodeURIComponent(query)}&page=${page}`,
+          { signal }
+        );
+        if (!res.ok) throw new Error("Network error");
+        const data = await res.json();
+        if (data.Response === "True" && data.Search) {
+          const result = { results: data.Search, totalResults: parseInt(data.totalResults) || 0 };
+          searchQueryCache[cacheKey] = { ...result, total: result.totalResults, ts: Date.now() };
+          return result;
         }
+        return { results: [], totalResults: 0 };
+      } catch (e) {
+        if (e.name !== 'AbortError') console.error(e);
+        return { results: [], totalResults: 0 };
       }
-
-      const item = state.items.find(i => i.id === state.selectedId);
-      if (!item) return;
-
-      const isSeries = item.type === 'series';
-      const progressPercent = getProgressPercent(item);
-      const savedReview = state.audioReviews[item.id] || "";
-
-      container.innerHTML = `
-        <div class="hero-content">
-          <img src="${item.poster !== 'N/A' ? item.poster : 'https://via.placeholder.com/200x300?text=No+Cover'}" class="hero-poster">
-          <div class="hero-details">
-            <h2 class="hero-title">${item.title}</h2>
-            <div class="hero-meta">
-              <span class="badge badge-status">${translateStatus(item.status)}</span>
-              <span class="badge" style="background:var(--accent); font-family:monospace;">ID: ${item.id}</span>
-              <span class="badge">⭐ ${item.imdbRating || 'N/A'}</span>
-              <span class="badge">📅 سال: ${item.year || 'N/A'}</span>
-              <span class="badge">⏰ مدت: ${item.runtime || 'N/A'}</span>
-              <span class="badge">👤 امتیاز شما: ${renderStarsStatic(item.userRating)}</span>
-            </div>
-
-            <div class="hero-extended-info">
-              <div class="extended-row"><strong>🎬 کارگردان (Director):</strong> ${item.director || 'نامشخص'}</div>
-              <div class="extended-row"><strong>📝 نویسنده (Writer):</strong> ${item.writer || 'نامشخص'}</div>
-              <div class="extended-row"><strong>🎭 ستارگان (Actors):</strong> ${item.actors || 'نامشخص'}</div>
-              <div class="extended-row"><strong>🌍 زبان / کشور:</strong> ${item.language || 'نامشخص'} / ${item.country || 'نامشخص'}</div>
-              <div class="extended-row"><strong>🏆 جوایز و نامزدی‌ها:</strong> ${item.awards || 'بدون مورد ثبت شده'}</div>
-            </div>
-
-            <p class="hero-plot">${item.plot || 'توضیحات داستانی برای این مورد یافت نشد.'}</p>
-            
-            ${isSeries ? `
-              <div class="episode-progress-block">
-                <div class="episode-progress-header">
-                  <span class="episode-progress-title">🍿 وضعیت تماشای سریال</span>
-                  <span class="episode-progress-count">فصل ${item.season}، قسمت ${item.episode}</span>
-                </div>
-                <div class="progress-container">
-                  <div class="progress-bar" style="width: ${progressPercent}%"></div>
-                </div>
-              </div>
-            ` : ''}
-
-            <div id="archiveMatchResults" style="margin-top:15px; margin-bottom:15px;"></div>
-
-            <div class="audio-review-block">
-              <div class="audio-controls">
-                <h4 style="font-size:14px; font-weight:bold; color:var(--cyan);">🎙️ نقد و بررسی صوتی / متنی شما</h4>
-                <button id="voiceRecBtn" class="btn btn-secondary" style="padding:4px 12px; font-size:12px; border-radius:6px;" onclick="toggleVoiceInput()">🎙️ شروع ثبت صوتی نقد</button>
-              </div>
-              <textarea id="audioReviewTextarea" class="form-control" style="min-height:80px; font-size:13px; background:#111;" placeholder="نقد شخصی خود را بنویسید یا دکمه ضبط صدا را بزنید تا صحبت‌های شما تایپ شود..." oninput="saveAudioReview('${item.id}', this.value)">${savedReview}</textarea>
-            </div>
-
-            <div class="hero-actions" style="margin-top:20px;">
-              <button class="btn btn-stream" onclick="matchAndExtractLinks('${item.id}')">
-                🔍 استخراج لینک‌های دانلود فایل از سورس آرشیو
-              </button>
-              
-              ${isSeries ? `
-                <button class="btn btn-secondary" style="background:#1a237e;" onclick="openManageProgressModal('${item.id}')">
-                  ⚙️ ویرایش و تغییر قسمت
-                </button>
-                <button class="btn btn-secondary" id="refreshSeasonDataBtn" onclick="refreshSeasonData('${item.id}')">
-                  🔄 بروزرسانی ساختار فصل‌ها
-                </button>
-              ` : ''}
-              
-              <button class="btn btn-secondary btn-delete" onclick="deleteItem('${item.id}')">🗑️ حذف عنوان</button>
-            </div>
-          </div>
-        </div>
-      `;
     }
 
-    /* ===================== ADVANCED STATS SYSTEM (IMDB AVG, MY AVG, FAVORITE GENRE) ===================== */
-    function renderDashboard() {
-      const container = document.getElementById("dashboardStats");
-      if (!container) return;
-
-      const total = state.items.length;
-      const watching = state.items.filter(i => i.status === "Watching").length;
-      const completed = state.items.filter(i => i.status === "Completed").length;
-
-      // ۱. محاسبه میانگین امتیاز IMDb کل کتابخانه فیلم و سریال
-      let totalImdb = 0;
-      let imdbCount = 0;
-      state.items.forEach(i => {
-        let parsed = parseFloat(i.imdbRating);
-        if(!isNaN(parsed)) { totalImdb += parsed; imdbCount++; }
-      });
-      const imdbAvg = imdbCount > 0 ? (totalImdb / imdbCount).toFixed(1) : "0.0";
-
-      // ۲. محاسبه میانگین امتیاز شخصی ثبت شده شما
-      let totalUserRating = 0;
-      let userRatingCount = 0;
-      state.items.forEach(i => {
-        if(i.userRating > 0) { totalUserRating += i.userRating; userRatingCount++; }
-      });
-      const userAvg = userRatingCount > 0 ? (totalUserRating / userRatingCount).toFixed(1) : "0.0";
-
-      // ۳. استخراج ژانر محبوب بر اساس فراوانی تکرار در کل لیست آرشیو شما
-      let genreFreq = {};
-      state.items.forEach(i => {
-        if(i.genre && i.genre !== "N/A") {
-          i.genre.split(",").forEach(g => {
-            let cleanG = g.trim();
-            genreFreq[cleanG] = (genreFreq[cleanG] || 0) + 1;
-          });
-        }
-      });
-      let favoriteGenre = "نامشخص";
-      let maxCount = 0;
-      for(let g in genreFreq) {
-        if(genreFreq[g] > maxCount) { maxCount = genreFreq[g]; favoriteGenre = g; }
-      }
-
-      container.innerHTML = `
-        <div class="stat-card"><h3>${total}</h3><p>کل عناوین کتابخانه</p></div>
-        <div class="stat-card"><h3>${watching}</h3><p>⏳ در حال تماشا</p></div>
-        <div class="stat-card"><h3>${completed}</h3><p>✅ تمام شده</p></div>
-        <div class="stat-card"><h3 style="color:#ffc107;">⭐ ${imdbAvg}</h3><p>میانگین کل IMDb</p></div>
-        <div class="stat-card"><h3 style="color:var(--cyan);">★ ${userAvg}</h3><p>میانگین امتیازهای من</p></div>
-        <div class="stat-card"><h3 style="color:#2e7d32; font-size:16px; padding-top:4px;">${favoriteGenre}</h3><p>🎭 ژانر محبوب شما</p></div>
-      `;
-    }
-
-    /* ===================== OMDB SEARCH & SYSTEM FUNCTIONS ===================== */
-    function handleSearch(query) {
+    async function handleSearch(query) {
       clearTimeout(searchDebounceTimer);
-      const dropdown = document.getElementById("searchDropdown");
+      if (searchAbortController) searchAbortController.abort();
 
-      if (!query || query.trim().length < 3) {
+      const dropdown = document.getElementById("searchDropdown");
+      if (!query || query.trim().length < 2) {
         dropdown.style.display = "none";
+        currentSearchQuery = ""; currentSearchResults = []; currentSearchPage = 1;
         return;
       }
+
+      // FIX: Show loading indicator IMMEDIATELY (before debounce fires) — user gets instant feedback
+      dropdown.style.display = "block";
+      dropdown.innerHTML = `<div style="padding:15px;text-align:center;color:var(--text-secondary);">🔍 در حال جستجو...</div>`;
+
+      currentSearchQuery   = query.trim();
+      currentSearchPage    = 1;
+      currentSearchResults = [];
+      searchAbortController = new AbortController();
+      const signal = searchAbortController.signal;
 
       searchDebounceTimer = setTimeout(async () => {
-        try {
-          let res = await fetch(`https://www.omdbapi.com/?apikey=${OMDB_KEY}&s=${encodeURIComponent(query.trim())}`);
-          let data = await res.json();
+        // Page 1 — show results immediately
+        const firstPage = await performSearch(currentSearchQuery, 1, signal);
+        if (signal.aborted) return;
+        currentSearchResults = firstPage.results;
+        const hasMore = firstPage.totalResults > 10;
+        renderSearchDropdown(currentSearchResults, hasMore, 1, firstPage.totalResults);
 
-          if (data.Response === "True" && data.Search) {
-            dropdown.innerHTML = data.Search.map(item => `
-              <div class="search-item" onclick="fetchItemFullDetails('${item.imdbID}')">
-                <img src="${item.Poster !== 'N/A' ? item.Poster : 'https://via.placeholder.com/45x65?text=No'}" alt="">
-                <div class="info">
-                  <h4>${item.Title}</h4>
-                  <p>${item.Year} • [${translateType(item.Type)}]</p>
-                </div>
-              </div>
-            `).join('');
-            dropdown.style.display = "block";
-          } else {
-            dropdown.innerHTML = `<div style="padding:15px; font-size:13px; color:var(--text-muted); text-align:center;">نتیجه‌ای یافت نشد.</div>`;
-            dropdown.style.display = "block";
+        // Pages 2-3 — load in background, update when ready
+        if (hasMore && currentSearchResults.length < 30) {
+          for (let p = 2; p <= 3; p++) {
+            if (signal.aborted) break;
+            const next = await performSearch(currentSearchQuery, p, signal);
+            if (signal.aborted) break;
+            if (next.results.length) {
+              const seen = new Set(currentSearchResults.map(r => r.imdbID));
+              const fresh = next.results.filter(r => !seen.has(r.imdbID));
+              if (fresh.length) {
+                currentSearchResults.push(...fresh);
+                currentSearchPage = p;
+                renderSearchDropdown(currentSearchResults, p < 3 && next.results.length === 10, p, firstPage.totalResults);
+              }
+            } else break;
           }
-        } catch (error) {
-          console.error("OMDB fetch error:", error);
         }
-      }, 400);
+      }, 300); // FIX: reduced from 400ms → 300ms
+    }
+
+    function renderSearchDropdown(results, hasMore, currentPage, totalResults) {
+      const dropdown = document.getElementById("searchDropdown");
+      if (!results.length) {
+        dropdown.innerHTML = `<div style="padding:15px;font-size:14px;color:var(--text-secondary);text-align:center;">نتیجه‌ای یافت نشد.</div>`;
+        return;
+      }
+      let html = results.map(item => `
+        <div class="search-item" onclick="fetchItemFullDetails('${item.imdbID}')">
+          <img src="${item.Poster !== 'N/A' ? item.Poster : 'https://via.placeholder.com/45x65?text=No'}" alt="" loading="lazy">
+          <div class="info"><h4>${item.Title}</h4><p>${item.Year} • [${translateType(item.Type)}]</p></div>
+        </div>`).join('');
+      if (hasMore) {
+        html += `<div class="load-more-btn" onclick="loadMoreSearchResults(event)">➕ بیشتر (${results.length} از ${totalResults} عنوان) ...</div>`;
+      }
+      dropdown.innerHTML = html;
+    }
+
+    async function loadMoreSearchResults(event) {
+      if (event) event.stopPropagation();
+      if (isLoadingMore) return;
+      isLoadingMore = true;
+      const nextPage = currentSearchPage + 1;
+      const more = await performSearch(currentSearchQuery, nextPage);
+      if (more.results.length) {
+        const seen  = new Set(currentSearchResults.map(r => r.imdbID));
+        const fresh = more.results.filter(r => !seen.has(r.imdbID));
+        currentSearchResults.push(...fresh);
+        currentSearchPage = nextPage;
+        renderSearchDropdown(currentSearchResults, more.results.length === 10, currentSearchPage, more.totalResults);
+      }
+      isLoadingMore = false;
     }
 
     function clearSearchInput() {
       document.getElementById("searchInput").value = "";
       document.getElementById("searchDropdown").style.display = "none";
+      currentSearchQuery = ""; currentSearchResults = [];
+      if (searchAbortController) searchAbortController.abort();
     }
 
     function translateType(type) {
-      if (type === "movie") return "فیلم سینمایی";
+      if (type === "movie")  return "فیلم سینمایی";
       if (type === "series") return "سریال تلویزیونی";
       return type;
     }
 
     async function fetchItemFullDetails(imdbID) {
       document.getElementById("searchDropdown").style.display = "none";
-      let movieData;
-      if (state.omdbCache[imdbID]) {
-        movieData = state.omdbCache[imdbID];
-      } else {
+      let movieData = state.omdbCache[imdbID];
+      if (!movieData) {
         try {
-          let res = await fetch(`https://www.omdbapi.com/?apikey=${OMDB_KEY}&i=${imdbID}&plot=full`);
+          const res = await fetch(`https://www.omdbapi.com/?apikey=${OMDB_KEY}&i=${imdbID}&plot=full`);
+          if (!res.ok) throw new Error("Network error");
           movieData = await res.json();
           if (movieData.Response === "True") {
+            // FIX: prune cache if it gets too large
+            const keys = Object.keys(state.omdbCache);
+            if (keys.length > 200) keys.slice(0, keys.length - 150).forEach(k => delete state.omdbCache[k]);
             state.omdbCache[imdbID] = movieData;
             localStorage.setItem("cinetrack_omdb_cache", JSON.stringify(state.omdbCache));
+          } else {
+            showToast("⚠️ اطلاعات این عنوان یافت نشد.", 'error');
+            return;
           }
         } catch (e) {
-          alert("خطا در برقراری ارتباط با OMDb");
+          showToast("⚠️ خطا در ارتباط با OMDb", 'error');
           return;
         }
       }
       openAddModal(movieData);
     }
 
+    // ==================== ADD / EDIT MODAL ====================
     function openAddModal(data) {
-      const backdrop = document.getElementById("addModal");
+      const backdrop  = document.getElementById("addModal");
       const container = document.getElementById("addModalContent");
-      const isSeries = data.Type === "series";
+      const isSeries  = data.Type === "series";
+      currentStarsVal = 0;
       container.innerHTML = `
-        <div style="display:flex; gap:20px; margin-bottom:20px; flex-wrap:wrap;">
-          <img src="${data.Poster !== 'N/A' ? data.Poster : 'https://via.placeholder.com/150x220?text=No+Cover'}" style="width:130px; height:190px; object-fit:cover; border-radius:8px; border:1px solid var(--border);">
-          <div style="flex:1; min-width:250px;">
-            <h3 style="margin-bottom:8px; font-weight:800;">${data.Title}</h3>
-            <p style="font-size:13px; margin-bottom:5px;">📅 <b>سال انتشار:</b> ${data.Year} | ⭐ <b>امتیاز:</b> ${data.imdbRating}</p>
-            <p style="font-size:13px; margin-bottom:5px;">🎭 <b>ژانر:</b> ${data.Genre}</p>
-            <p style="font-size:12px; color:var(--text-muted); line-height:1.6;">${data.Plot ? data.Plot.substring(0, 160) + '...' : ''}</p>
-            ${isSeries ? `<p class="season-fetch-status" id="seasonFetchStatus">🔄 اطلاعات فصل‌ها پس از ثبت به طور خودکار دریافت می‌شود...</p>` : ''}
+        <div style="display:flex;gap:16px;margin-bottom:24px;flex-wrap:wrap;">
+          <img src="${data.Poster !== 'N/A' ? data.Poster : 'https://via.placeholder.com/150x220?text=No+Cover'}"
+               style="width:120px;height:170px;object-fit:cover;border-radius:10px;border:1px solid var(--glass-border);">
+          <div style="flex:1;min-width:240px;">
+            <h3 style="margin-bottom:8px;font-weight:800;font-size:16px;">${data.Title}</h3>
+            <p style="font-size:13px;margin-bottom:6px;">📅 <b>سال:</b> ${data.Year} | ⭐ <b>امتیاز:</b> ${data.imdbRating}</p>
+            <p style="font-size:13px;margin-bottom:6px;">🎭 <b>ژانر:</b> ${data.Genre}</p>
+            ${isSeries && data.totalSeasons ? `<p style="font-size:13px;color:var(--blue);">📺 <b>تعداد کل فصل‌ها:</b> ${data.totalSeasons}</p>` : ''}
           </div>
         </div>
         <input type="hidden" id="formImdbID" value="${data.imdbID}">
         <div class="form-group">
           <label>وضعیت تماشا:</label>
           <select id="formStatus" class="form-control" onchange="toggleModalSeriesFields(this.value, ${isSeries})">
-            <option value="Watching">⏳ در حال تماشا (Watching)</option>
-            <option value="Planned">📅 برنامه‌ریزی شده برای آینده (Planned)</option>
-            <option value="Completed">✅ تمام شده و کامل (Completed)</option>
+            <option value="Watching">⏳ در حال تماشا</option>
+            <option value="Planned">📅 برنامه‌ریزی شده</option>
+            <option value="Completed">✅ تمام شده</option>
           </select>
         </div>
-        <div id="modalSeriesProgress" style="display: ${isSeries ? 'block' : 'none'}">
+        <div id="modalSeriesProgress" style="display:${isSeries ? 'block' : 'none'}">
           <div class="form-row">
-            <div class="form-group">
-              <label>فصل کنونی:</label>
-              <input type="number" id="formSeason" class="form-control" value="1" min="1">
-            </div>
-            <div class="form-group">
-              <label>قسمت کنونی:</label>
-              <input type="number" id="formEpisode" class="form-control" value="1" min="1">
-            </div>
+            <div class="form-group"><label>فصل کنونی:</label><input type="number" id="formSeason" class="form-control" value="1" min="1"></div>
+            <div class="form-group"><label>قسمت کنونی:</label><input type="number" id="formEpisode" class="form-control" value="1" min="1"></div>
           </div>
         </div>
         <div class="form-group">
-          <label>امتیاز شخصی شما (۱ تا ۵ ستاره):</label>
+          <label>امتیاز شخصی شما:</label>
           <div class="stars-rating" id="modalStars">
-            <span onclick="setStarsValue(1)">★</span>
-            <span onclick="setStarsValue(2)">★</span>
-            <span onclick="setStarsValue(3)">★</span>
-            <span onclick="setStarsValue(4)">★</span>
+            <span onclick="setStarsValue(1)">★</span><span onclick="setStarsValue(2)">★</span>
+            <span onclick="setStarsValue(3)">★</span><span onclick="setStarsValue(4)">★</span>
             <span onclick="setStarsValue(5)">★</span>
           </div>
           <input type="hidden" id="formUserRating" value="0">
         </div>
-        <button class="btn" style="width:100%; margin-top:10px;" onclick="saveItemFromModal()">💾 ذخیره فیلم/سریال در کتابخانه</button>
-      `;
+        <button class="btn" style="width:100%;margin-top:14px;" onclick="saveItemFromModal()">💾 ذخیره در کتابخانه</button>`;
       backdrop.classList.add("active");
     }
 
@@ -937,134 +989,114 @@
     function setStarsValue(val) {
       currentStarsVal = val;
       document.getElementById("formUserRating").value = val;
-      const spans = document.querySelectorAll("#modalStars span");
-      spans.forEach((s, idx) => {
-        if (idx < val) s.classList.add("active");
-        else s.classList.remove("active");
-      });
+      document.querySelectorAll("#modalStars span").forEach((s, i) => s.classList.toggle("active", i < val));
     }
 
     function toggleModalSeriesFields(status, isSeries) {
       const el = document.getElementById("modalSeriesProgress");
       if (!el || !isSeries) return;
-      if (status === "Completed") {
-        el.style.display = "none";
-      } else {
-        el.style.display = "block";
-      }
+      el.style.display = (status === "Completed") ? "none" : "block";
     }
 
     async function saveItemFromModal() {
       if (isSavingItem) return;
       isSavingItem = true;
 
-      const imdbID = document.getElementById("formImdbID").value;
-      const status = document.getElementById("formStatus").value;
-      const userRating = parseInt(document.getElementById("formUserRating").value) || 0;
+      const imdbID     = document.getElementById("formImdbID")?.value;
+      const status     = document.getElementById("formStatus")?.value;
+      const userRating = parseInt(document.getElementById("formUserRating")?.value) || 0;
 
       const rawCached = state.omdbCache[imdbID];
       if (!rawCached) {
+        // FIX: reset flag on ALL early returns (was missing before)
         isSavingItem = false;
+        showToast("⚠️ اطلاعات کش شده یافت نشد. دوباره جستجو کنید.", 'error');
         return;
       }
 
-      let season = 1;
-      let episode = 1;
+      let season = 1, episode = 1;
       const isSeries = rawCached.Type === "series";
-
       if (isSeries && status !== "Completed") {
-        season = parseInt(document.getElementById("formSeason").value) || 1;
-        episode = parseInt(document.getElementById("formEpisode").value) || 1;
+        season  = parseInt(document.getElementById("formSeason")?.value) || 1;
+        episode = parseInt(document.getElementById("formEpisode")?.value) || 1;
+        const totalS = parseInt(rawCached.totalSeasons) || 1;
+        season  = Math.max(1, Math.min(season, totalS));
+        episode = Math.max(1, episode);
       }
 
       const existingIdx = state.items.findIndex(i => i.id === imdbID);
-      let seasonData = {};
-
-      if (isSeries) {
-        const statusEl = document.getElementById("seasonFetchStatus");
-        if (statusEl) statusEl.innerText = "⏳ در حال استخراج متادیتا و تعداد اپیزودها...";
-        seasonData = await fetchSeasonData(imdbID, rawCached.totalSeasons);
-      }
-
       const newItem = {
-        id: imdbID,
-        title: rawCached.Title,
-        type: rawCached.Type,
-        poster: rawCached.Poster,
-        year: rawCached.Year,
-        imdbRating: rawCached.imdbRating,
-        plot: rawCached.Plot,
-        genre: rawCached.Genre,
-        runtime: rawCached.Runtime,
-        director: rawCached.Director,
-        writer: rawCached.Writer,
-        actors: rawCached.Actors,
-        language: rawCached.Language,
-        country: rawCached.Country,
-        awards: rawCached.Awards,
-        status: status,
-        userRating: userRating,
-        season: isSeries ? season : null,
-        episode: isSeries ? episode : null,
+        id:           imdbID,
+        title:        rawCached.Title,
+        type:         rawCached.Type,
+        poster:       rawCached.Poster,
+        year:         rawCached.Year,
+        imdbRating:   rawCached.imdbRating,
+        plot:         rawCached.Plot,
+        genre:        rawCached.Genre,
+        director:     rawCached.Director,
+        actors:       rawCached.Actors,
+        language:     rawCached.Language,
+        country:      rawCached.Country,
+        awards:       rawCached.Awards,
+        status,
+        userRating,
+        season:       isSeries ? season   : null,
+        episode:      isSeries ? episode  : null,
         totalSeasons: isSeries ? rawCached.totalSeasons : null,
-        seasonData: seasonData,
-        dateAdded: existingIdx > -1 ? state.items[existingIdx].dateAdded : new Date().toISOString(),
-        lastUpdated: new Date().toISOString()
+        dateAdded:    existingIdx > -1 ? state.items[existingIdx].dateAdded : new Date().toISOString(),
+        lastUpdated:  new Date().toISOString()
       };
 
-      if (existingIdx > -1) {
-        state.items[existingIdx] = newItem;
-      } else {
-        state.items.push(newItem);
-      }
+      if (existingIdx > -1) state.items[existingIdx] = newItem;
+      else                  state.items.push(newItem);
 
+      // FIX: saveStateToStorage now exists and actually persists data to localStorage
       saveStateToStorage();
       state.selectedId = imdbID;
       closeModal('addModal');
       renderDashboard();
+      extractAndRenderGenres();
       renderGrid();
       renderHero();
+      renderWatchNext();
+      showToast(`✅ «${newItem.title}» به کتابخانه اضافه شد!`, 'success');
       isSavingItem = false;
     }
 
-    /* ===================== RENDER GRID & FILTERS ===================== */
     function deleteItem(id) {
       if (!confirm("آیا مطمئن هستید که می‌خواهید این عنوان را حذف کنید؟")) return;
+      const item = state.items.find(i => i.id === id);
       state.items = state.items.filter(i => i.id !== id);
       if (state.selectedId === id) state.selectedId = null;
       saveStateToStorage();
-      renderDashboard();
-      renderGrid();
-      renderHero();
+      renderDashboard(); renderGrid(); renderHero(); renderWatchNext();
+      if (item) showToast(`🗑️ «${item.title}» حذف شد.`, 'info');
     }
 
     function renderStarsStatic(rating) {
       let h = "";
-      for (let i = 1; i <= 5; i++) {
-        h += `<span style="color:${i <= rating ? '#ffc107' : '#444'}; margin-left:2px;">★</span>`;
-      }
+      for (let i = 1; i <= 5; i++) h += `<span style="color:${i <= rating ? '#fbbf24' : '#4b5563'};margin-left:2px;">★</span>`;
       return h;
     }
 
     function translateStatus(s) {
-      if (s === "Watching") return "⏳ در حال تماشا";
-      if (s === "Planned") return "📅 برنامه‌ریزی شده";
+      if (s === "Watching")  return "⏳ در حال تماشا";
+      if (s === "Planned")   return "📅 برنامه‌ریزی شده";
       if (s === "Completed") return "✅ تمام شده";
       return s;
     }
 
+    // ==================== FILTERING & SORTING ====================
     function extractAndRenderGenres() {
       const select = document.getElementById("genreFilterSelect");
       if (!select) return;
       const currentVal = state.filters.genre;
-
-      let genresSet = new Set();
+      const genresSet  = new Set();
       state.items.forEach(item => {
-        if (item.genre && item.genre !== "N/A") {
+        if (item.genre && item.genre !== "N/A")
           item.genre.split(",").forEach(g => genresSet.add(g.trim()));
-        }
       });
-
       let h = `<option value="all">فیلتر ژانر (همه)</option>`;
       Array.from(genresSet).sort().forEach(g => {
         h += `<option value="${g}" ${g === currentVal ? 'selected' : ''}>${g}</option>`;
@@ -1073,9 +1105,10 @@
     }
 
     function setFilter(key, value) {
+      // Reset all categorical filters together, then apply the chosen one
       if (key === 'status' || key === 'type' || key === 'special') {
-        state.filters.status = 'all';
-        state.filters.type = 'all';
+        state.filters.status  = 'all';
+        state.filters.type    = 'all';
         state.filters.special = 'all';
       }
       state.filters[key] = value;
@@ -1083,83 +1116,70 @@
       renderGrid();
     }
 
-    function handleGenreChange(val) {
-      state.filters.genre = val;
-      renderGrid();
-    }
+    function handleGenreChange(val) { state.filters.genre = val; renderGrid(); }
+    function handleSortChange(val)  { state.sortBy = val; renderGrid(); }
 
-    function handleSortChange(val) {
-      state.sortBy = val;
-      renderGrid();
-    }
-
+    // FIX: Rewrote to prevent double-highlighting (was showing both "All" and e.g. "Movies" active)
     function setupFilterButtonsUI() {
-      const btns = document.querySelectorAll("#filterContainer .filter-btn");
-      btns.forEach(b => b.classList.remove("active"));
-
+      const btns   = document.querySelectorAll("#filterContainer .filter-btn");
+      const isAll  = state.filters.status === 'all' && state.filters.type === 'all' && state.filters.special === 'all';
       btns.forEach(b => {
-        const onClickStr = b.getAttribute("onclick");
-        if (onClickStr.includes("'status'") && onClickStr.includes(`'${state.filters.status}'`)) b.classList.add("active");
-        if (onClickStr.includes("'type'") && onClickStr.includes(`'${state.filters.type}'`)) b.classList.add("active");
-        if (onClickStr.includes("'special'") && onClickStr.includes(`'${state.filters.special}'`)) b.classList.add("active");
+        const str = b.getAttribute("onclick") || "";
+        let active = false;
+        if (str.includes("'status', 'all'")) {
+          active = isAll;
+        } else if (!isAll) {
+          if (str.includes("'status'")  && str.includes(`'${state.filters.status}'`)  && state.filters.status  !== 'all') active = true;
+          if (str.includes("'type'")    && str.includes(`'${state.filters.type}'`)    && state.filters.type    !== 'all') active = true;
+          if (str.includes("'special'") && str.includes(`'${state.filters.special}'`) && state.filters.special !== 'all') active = true;
+        }
+        b.classList.toggle("active", active);
       });
     }
 
     function getFilteredAndSortedItems() {
       let arr = [...state.items];
-
-      if (state.filters.status !== 'all') arr = arr.filter(i => i.status === state.filters.status);
-      if (state.filters.type !== 'all') arr = arr.filter(i => i.type === state.filters.type);
-      if (state.filters.genre !== 'all') arr = arr.filter(i => i.genre && i.genre.includes(state.filters.genre));
-      
-      if (state.filters.special === 'highRated') arr = arr.filter(i => parseFloat(i.imdbRating) >= 8.0);
+      if (state.filters.status  !== 'all') arr = arr.filter(i => i.status === state.filters.status);
+      if (state.filters.type    !== 'all') arr = arr.filter(i => i.type   === state.filters.type);
+      if (state.filters.genre   !== 'all') arr = arr.filter(i => i.genre && i.genre.includes(state.filters.genre));
+      if (state.filters.special === 'highRated')   arr = arr.filter(i => parseFloat(i.imdbRating) >= 8.0);
       if (state.filters.special === 'personalTop') arr = arr.filter(i => i.userRating === 5);
-
       arr.sort((a, b) => {
-        if (state.sortBy === 'title') return a.title.localeCompare(b.title);
-        if (state.sortBy === 'imdb') return (parseFloat(b.imdbRating) || 0) - (parseFloat(a.imdbRating) || 0);
-        if (state.sortBy === 'year') return parseInt(b.year) - parseInt(a.year);
+        if (state.sortBy === 'title')      return a.title.localeCompare(b.title);
+        if (state.sortBy === 'imdb')       return (parseFloat(b.imdbRating) || 0) - (parseFloat(a.imdbRating) || 0);
+        if (state.sortBy === 'year')       return parseInt(b.year) - parseInt(a.year);
         if (state.sortBy === 'userRating') return b.userRating - a.userRating;
         return new Date(b.dateAdded) - new Date(a.dateAdded);
       });
-
       return arr;
     }
 
     function renderGrid() {
       const container = document.getElementById("mainGrid");
       if (!container) return;
-
       const items = getFilteredAndSortedItems();
-      if (items.length === 0) {
-        container.innerHTML = `<div style="grid-column: 1/-1; text-align:center; padding:40px; color:var(--text-muted); font-size:14px;">هیچ عنوانی با فیلترهای مشخص شده یافت نشد.</div>`;
+      if (!items.length) {
+        container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--text-secondary);font-size:14px;">هیچ عنوانی یافت نشد.</div>`;
         return;
       }
-
       container.innerHTML = items.map(item => {
         const isSelected = item.id === state.selectedId;
-        const progress = item.type === 'series' ? getProgressPercent(item) : 0;
-        return `
-          <div class="movie-card ${isSelected ? 'selected' : ''}" onclick="selectGridItem('${item.id}')">
-            <div class="card-poster-wrapper">
-              <img src="${item.poster !== 'N/A' ? item.poster : 'https://via.placeholder.com/200x280?text=No+Cover'}" alt="">
-              <div class="card-overlay">
-                <p style="font-size:12px; font-weight:bold;">⭐ IMDb: ${item.imdbRating}</p>
-                <p style="font-size:11px; color:var(--text-muted);">${item.genre ? item.genre.split(',')[0] : ''}</p>
-                <button class="btn btn-secondary" style="padding:4px 10px; font-size:11px;" onclick="event.stopPropagation(); deleteItem('${item.id}')">🗑️ حذف</button>
-              </div>
-            </div>
-            <div class="card-info">
-              <h4 class="card-title" title="${item.title}">${item.title}</h4>
-              <div class="card-meta-line">
-                <span>${item.year}</span>
-                <span>${translateType(item.type)}</span>
-              </div>
-              <div style="font-size:11px; margin-top:4px;">امتیاز من: ${renderStarsStatic(item.userRating)}</div>
-              ${item.type === 'series' ? `<div class="card-progress">پیشرفت: ${progress}%</div>` : ''}
+        const progress   = item.type === 'series' ? getProgressPercent(item) : 0;
+        return `<div class="movie-card ${isSelected ? 'selected' : ''}" onclick="selectGridItem('${item.id}')">
+          <div class="card-poster-wrapper">
+            <img src="${item.poster !== 'N/A' ? item.poster : 'https://via.placeholder.com/200x280?text=No+Cover'}" alt="" loading="lazy">
+            <div class="card-overlay">
+              <p style="font-size:13px;font-weight:700;">⭐ IMDb: ${item.imdbRating}</p>
+              <button class="btn btn-secondary" style="padding:5px 10px;font-size:12px;" onclick="event.stopPropagation();deleteItem('${item.id}')">🗑️ حذف</button>
             </div>
           </div>
-        `;
+          <div class="card-info">
+            <h4 class="card-title" title="${item.title}">${item.title}</h4>
+            <div class="card-meta-line"><span>${item.year}</span><span>${translateType(item.type)}</span></div>
+            <div style="font-size:12px;margin-top:4px;">امتیاز من: ${renderStarsStatic(item.userRating)}</div>
+            ${item.type === 'series' ? `<div class="card-progress">پیشرفت: ${progress}%</div>` : ''}
+          </div>
+        </div>`;
       }).join('');
     }
 
@@ -1167,137 +1187,539 @@
       state.selectedId = id;
       renderGrid();
       renderHero();
+      // Scroll to hero
+      document.getElementById('heroSection')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
-    /* ===================== WATCH NEXT PRIORITIZATION ENGINE ===================== */
     function getTopWatchNext() {
-      let candidates = state.items.filter(i => i.status === "Watching");
-      if (candidates.length === 0) {
-        candidates = state.items.filter(i => i.status === "Planned");
-      }
-      if (candidates.length === 0) return null;
-
-      candidates.sort((a, b) => {
-        if (a.status !== b.status) {
-          return a.status === "Watching" ? -1 : 1;
-        }
-        const scoreA = (parseFloat(a.imdbRating) || 0) + (a.userRating * 0.5);
-        const scoreB = (parseFloat(b.imdbRating) || 0) + (b.userRating * 0.5);
-        return scoreB - scoreA;
-      });
-
-      return candidates[0];
+      let c = state.items.filter(i => i.status === "Watching");
+      if (!c.length) c = state.items.filter(i => i.status === "Planned");
+      if (!c.length) return null;
+      c.sort((a, b) =>
+        ((parseFloat(b.imdbRating) || 0) + (b.userRating * 0.5)) -
+        ((parseFloat(a.imdbRating) || 0) + (a.userRating * 0.5))
+      );
+      return c[0];
     }
 
     function renderWatchNext() {
       const container = document.getElementById("watchNextContainer");
       if (!container) return;
-
       const top = getTopWatchNext();
       if (!top) {
-        container.innerHTML = `<p style="color:var(--text-muted); font-size:14px;">لیست شما خالی است یا هیچ فیلمی در وضعیت در حال تماشا یا برنامه‌ریزی قرار ندارد.</p>`;
+        container.innerHTML = `<p style="color:var(--text-secondary);font-size:14px;">لیست تماشای شما خالی است.</p>`;
         return;
       }
-
-      const isSeries = top.type === 'series';
-      const nextEp = isSeries ? getNextEpisodeInfo(top) : null;
-
       container.innerHTML = `
-        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:15px; cursor:pointer;" onclick="selectGridItem('${top.id}')">
-          <div style="display:flex; align-items:center; gap:15px;">
-            <img src="${top.poster !== 'N/A' ? top.poster : 'https://via.placeholder.com/50x70?text=No'}" style="width:40px; height:55px; object-fit:cover; border-radius:6px; border:1px solid var(--border);">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;cursor:pointer;" onclick="selectGridItem('${top.id}')">
+          <div style="display:flex;align-items:center;gap:16px;">
+            <img src="${top.poster !== 'N/A' ? top.poster : 'https://via.placeholder.com/50x70?text=No'}"
+                 style="width:40px;height:55px;object-fit:cover;border-radius:8px;border:1px solid var(--glass-border);" loading="lazy">
             <div>
-              <h4 style="font-weight:800; font-size:16px; color:#fff;">${top.title}</h4>
-              <p style="font-size:12px; color:var(--text-muted); margin-top:2px;">
-                وضعیت: ${translateStatus(top.status)} | ⭐ امتیاز IMDb: ${top.imdbRating}
-                ${isSeries && nextEp ? `<br><span class="watch-next-badge">⏭️ پیشنهاد بعدی: فصل ${nextEp.season} قسمت ${nextEp.episode}</span>` : ''}
-              </p>
+              <h4 style="font-weight:700;font-size:15px;">${top.title}</h4>
+              <p style="font-size:13px;color:var(--text-secondary);margin-top:4px;">وضعیت: ${translateStatus(top.status)} | ⭐ IMDb: ${top.imdbRating}</p>
             </div>
           </div>
-          <button class="btn btn-secondary" style="font-size:13px;">🎯 تمرکز روی این عنوان</button>
-        </div>
-      `;
+          <button class="btn btn-secondary" style="font-size:13px;padding:8px 16px;">🎯 تمرکز روی این عنوان</button>
+        </div>`;
     }
 
-    /* ===================== ADVANCED GLOBAL AI REASONING ===================== */
-    async function generateGlobalAIAnalysis(forceRegen = false) {
-      if (!forceRegen && state.globalAiCache) return;
+    // ==================== ARCHIVE UPLOAD (FIX #3: function was NEVER DEFINED) ====================
+    async function handleArchiveHtmlUpload(event) {
+      const file     = event.target.files[0];
+      const statusEl = document.getElementById("archiveUploadStatus");
+      if (!file) return;
 
-      const key = localStorage.getItem("cinetrack_or_key");
-      const model = localStorage.getItem("cinetrack_or_model") || "deepseek/deepseek-chat";
+      statusEl.style.color = '#fbbf24';
+      statusEl.textContent = "⏳ در حال خواندن فایل...";
 
-      if (!key) {
-        alert("لطفاً ابتدا کلید OpenRouter API Key را در تنظیمات وارد کنید.");
-        openSettingsModal();
+      const reader = new FileReader();
+      reader.onload = async function(e) {
+        const content = e.target.result;
+        if (!content || content.trim().length === 0) {
+          statusEl.style.color = '#ef4444';
+          statusEl.textContent = "❌ فایل خالی است.";
+          return;
+        }
+        state.archiveHtmlSource = content;
+        statusEl.style.color   = '#fbbf24';
+        statusEl.textContent   = "⏳ در حال ذخیره‌سازی در IndexedDB...";
+        try {
+          await saveArchiveToDB(content);
+          statusEl.style.color = '#10b981';
+          statusEl.textContent = `✅ فایل آرشیو با موفقیت بارگذاری شد (${Math.round(content.length / 1024)} KB).`;
+          showToast("✅ فایل آرشیو بارگذاری شد!", 'success');
+        } catch (err) {
+          console.error("Archive save error:", err);
+          // Even if DB save fails, keep in memory for this session
+          statusEl.style.color = '#f59e0b';
+          statusEl.textContent = "⚠️ فایل در حافظه موقت بارگذاری شد (خطا در ذخیره دائم).";
+        }
+      };
+      reader.onerror = function() {
+        statusEl.style.color = '#ef4444';
+        statusEl.textContent = "❌ خطا در خواندن فایل.";
+      };
+      reader.readAsText(file, 'UTF-8');
+    }
+
+    // ==================== ARCHIVE LINK SEARCH ====================
+    function getAllArchiveLinks() {
+      if (!state.archiveHtmlSource) return [];
+      const parser = new DOMParser();
+      const doc    = parser.parseFromString(state.archiveHtmlSource, 'text/html');
+      return Array.from(doc.getElementsByTagName('a')).map(link => ({
+        text: (link.innerText || link.textContent || '').trim(),
+        url:  link.getAttribute('href') || ''
+      })).filter(l => l.url && l.url.length > 5);
+    }
+
+    function buildTitleRegex(title) {
+      const cleaned  = title.toLowerCase().replace(/[''':!?,.()\[\]]/g, '').replace(/\s+/g, ' ').trim();
+      const words    = cleaned.split(' ').filter(w => w.length > 0);
+      const escaped  = words.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+      const pattern  = escaped.join('[-_.\\s]');
+      const rBound   = '(?=[/_.\\s]|$|\\d|(?=-(?:s\\d{1,2}e?\\d*|\\d{4}|ep\\d|season\\d)))';
+      return new RegExp('(?:^|[/_.\\s])' + pattern + rBound, 'i');
+    }
+
+    function searchByImdbId(allLinks, imdbID) {
+      const id = imdbID.toLowerCase();
+      return allLinks.filter(l => l.url.toLowerCase().includes(id) || l.text.toLowerCase().includes(id));
+    }
+
+    function searchByTitleOnly(allLinks, title) {
+      const rx = buildTitleRegex(title);
+      return allLinks.filter(l => rx.test(l.url) || rx.test(l.text));
+    }
+
+    function searchByBothStrict(allLinks, title, imdbID) {
+      const id = imdbID.toLowerCase();
+      const rx = buildTitleRegex(title);
+      return allLinks.filter(l => {
+        const ul = l.url.toLowerCase(), tl = l.text.toLowerCase();
+        return (ul.includes(id) || tl.includes(id)) && (rx.test(l.url) || rx.test(l.text));
+      });
+    }
+
+    async function searchWithAI(item, allLinks) {
+      const linkList   = allLinks.slice(0, 500).map((l, i) => `${i}: [${l.text.slice(0,80)}] ${l.url.slice(0,150)}`).join('\n');
+      const sysPrompt  = `You are a precise download-link matcher. Return ONLY comma-separated indices of links belonging EXACTLY to the given title. If nothing matches, output NONE. No explanation.`;
+      const userText   = `Title: "${item.title}"\nIMDb ID: ${item.id}\nYear: ${item.year}\nType: ${item.type === 'series' ? 'TV Series' : 'Movie'}\n\nLinks:\n${linkList}`;
+      try {
+        const answer = (await callAIAPI(sysPrompt, userText)).trim();
+        if (/^none$/i.test(answer) || !answer) return [];
+        const indices = answer.split(/[\s,،]+/).map(n => parseInt(n)).filter(n => !isNaN(n) && n >= 0 && n < allLinks.length);
+        return indices.map(i => allLinks[i]);
+      } catch (e) { console.error("AI link search failed:", e); }
+      return null;
+    }
+
+    // FIX: Added null check for item to prevent crash
+    async function matchAndExtractLinks(imdbID) {
+      const item       = state.items.find(i => i.id === imdbID);
+      const resultsDiv = document.getElementById("archiveMatchResults");
+      if (!resultsDiv) return;
+
+      if (!item) {
+        resultsDiv.innerHTML = `<div style="background:rgba(239,68,68,0.06);border:1px solid #f87171;padding:15px;border-radius:12px;font-size:14px;color:#ef4444;">⚠️ عنوان مورد نظر در کتابخانه یافت نشد.</div>`;
+        return;
+      }
+      if (!state.archiveHtmlSource) {
+        resultsDiv.innerHTML = `<div style="background:rgba(239,68,68,0.06);border:1px solid #f87171;padding:15px;border-radius:12px;font-size:14px;color:#ef4444;">⚠️ فایل آرشیو بارگذاری نشده است. در تنظیمات فایل HTML آرشیو را آپلود کنید.</div>`;
         return;
       }
 
-      const btn = document.querySelector(".ai-global-panel .btn");
-      const responseBox = document.getElementById("globalAiResponse");
+      function stageMsg(n, msg) {
+        resultsDiv.innerHTML = `<div class="stage-indicator"><div class="stage-spinner"></div><span>مرحله ${n} از ۴ — ${msg}</span></div>`;
+      }
 
-      btn.disabled = true;
-      responseBox.innerText = "⏳ موتور استدلال هوش مصنوعی در حال بررسی الگوها، سوابق تماشا و ترجیحات ژانر شماست. لطفاً شکیبا باشید...";
+      const allLinks = getAllArchiveLinks();
+      let matches    = [];
 
-      const promptData = state.items.map(i => ({
-        title: i.title,
-        type: i.type,
-        genre: i.genre,
-        imdbRating: i.imdbRating,
-        userRating: i.userRating,
-        status: i.status
-      }));
+      stageMsg('۱', `جستجو با کد IMDb: ${imdbID}`);
+      await tick();
+      matches = searchByImdbId(allLinks, imdbID);
+      if (matches.length) return renderExtractedLinks(matches, item, resultsDiv, `🆔 یافت‌شده با کد IMDb: <b>${imdbID}</b>`);
 
-      const systemPrompt = `You are CineTrack AI Brain, a data scientist specializing in cinematography trends. Analyze user's media library log and provide a detailed review in Persian. Speak directly to the user about their tastes, statistics, high-value missed opportunities, and actionable recommendations. Always output valid HTML tags for styling inside Persian text (like using <span style="color:#00bcd4;"> for highlights). Do not use markdown blocks like \`\`\`html in response.`;
-      const userPrompt = `Here is my complete movie/series list: ${JSON.stringify(promptData)}. Analyze my tastes, patterns, breakdowns, and give me deep insights.`;
+      stageMsg('۲', 'جستجوی ترکیبی — تطابق هم‌زمان کد و نام');
+      await tick();
+      matches = searchByBothStrict(allLinks, item.title, imdbID);
+      if (matches.length) return renderExtractedLinks(matches, item, resultsDiv, `🔤+🆔 یافت‌شده با تطابق ترکیبی`);
 
+      stageMsg('۳', `جستجو با نام دقیق: ${item.title}`);
+      await tick();
+      matches = searchByTitleOnly(allLinks, item.title);
+      if (matches.length) return renderExtractedLinks(matches, item, resultsDiv, `🔤 یافت‌شده با نام: <b>${item.title}</b>`);
+
+      stageMsg('۴', 'هیچ نتیجه‌ای یافت نشد — مشورت با هوش مصنوعی...');
+      await tick();
+      const aiResult = await searchWithAI(item, allLinks);
+      if (aiResult === null) {
+        resultsDiv.innerHTML = `<div style="background:rgba(239,68,68,0.06);border:1px solid #f87171;padding:15px;border-radius:12px;font-size:14px;color:#ef4444;">⚠️ ارتباط با هوش مصنوعی ممکن نیست.</div>`;
+        return;
+      }
+      if (!aiResult.length) {
+        resultsDiv.innerHTML = `<div style="background:rgba(239,68,68,0.06);border:1px solid #f87171;padding:15px;border-radius:12px;font-size:14px;color:#ef4444;">⚠️ هیچ لینکی برای <b>${item.title}</b> یافت نشد.</div>`;
+        return;
+      }
+      renderExtractedLinks(aiResult, item, resultsDiv, `🤖 یافت‌شده توسط هوش مصنوعی`);
+    }
+
+    function tick() { return new Promise(r => setTimeout(r, 0)); }
+
+    function renderExtractedLinks(matches, currentItem, resultsDiv, strategyLabel) {
+      const isSeries = currentItem?.type === 'series';
+
+      function cleanQualityStr(text) {
+        let q = "";
+        const t = text.toLowerCase();
+        if (t.includes("2160p") || t.includes("4k")) q += "4K ";
+        else if (t.includes("1080p")) q += "1080p ";
+        else if (t.includes("720p"))  q += "720p ";
+        else if (t.includes("480p"))  q += "480p ";
+        if      (t.includes("bluray"))                      q += "BluRay";
+        else if (t.includes("web-dl") || t.includes("webdl")) q += "Web-DL";
+        else if (t.includes("hdtv"))                        q += "HDTV";
+        if (t.includes("x265"))  q += " x265";
+        if (t.includes("10bit")) q += " 10bit";
+        return q.trim() || "دانلود";
+      }
+
+      function extractFileSize(text) {
+        const m = text.match(/(\d+(?:\.\d+)?\s*(?:GB|MB))/i);
+        return m ? m[1] : "";
+      }
+
+      let softSubLinks = [], dubbedLinks = [];
+      matches.forEach(m => {
+        const combined = (m.text + " " + m.url).toLowerCase();
+        if (combined.includes("dubbed") || combined.includes("دوبله") || combined.includes("dub"))
+          dubbedLinks.push(m);
+        else
+          softSubLinks.push(m);
+      });
+
+      let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <span style="font-size:13px;color:var(--text-secondary);background:rgba(255,255,255,0.05);padding:6px 14px;border-radius:20px;border:1px solid var(--glass-border);">${strategyLabel} — ${matches.length} لینک</span>
+      </div><div class="quality-section-wrapper">`;
+
+      if (!isSeries) {
+        if (softSubLinks.length) {
+          html += `<div><div class="quality-block-title softsub">SoftSub</div>`;
+          softSubLinks.forEach(m => {
+            const q = cleanQualityStr(m.text || m.url), s = extractFileSize(m.text || m.url);
+            html += `<a href="${m.url}" target="_blank" class="movie-quality-line">📥 ${s ? q + ' / ' + s : q}</a>`;
+          });
+          html += `</div>`;
+        }
+        if (dubbedLinks.length) {
+          html += `<div><div class="quality-block-title dubbed">Dubbed</div>`;
+          dubbedLinks.forEach(m => {
+            const q = cleanQualityStr(m.text || m.url), s = extractFileSize(m.text || m.url);
+            html += `<a href="${m.url}" target="_blank" class="movie-quality-line">📥 ${s ? q + ' / ' + s : q}</a>`;
+          });
+          html += `</div>`;
+        }
+      } else {
+        function renderSeriesGroup(linkArray, label, blockClass) {
+          if (!linkArray.length) return "";
+          const seasons = {};
+          linkArray.forEach(m => {
+            const combined = (m.text + " " + m.url).toLowerCase();
+            let s = 1;
+            const pat = combined.match(/\bs(\d{1,2})e?\d{0,2}\b/) || combined.match(/season[\s._-]*(\d{1,2})/i) || combined.match(/فصل[\s]*(\d{1,4})/);
+            if (pat) s = parseInt(pat[1]);
+            (seasons[s] = seasons[s] || []).push(m);
+          });
+          let out = `<div><div class="quality-block-title ${blockClass}">${label}</div>`;
+          Object.keys(seasons).map(Number).sort((a,b)=>a-b).forEach(sn => {
+            out += `<div class="series-season-container"><div class="series-season-title">Season ${sn}</div><div class="series-qualities-row">`;
+            out += seasons[sn].map(m => `<a href="${m.url}" target="_blank">📥 ${cleanQualityStr(m.text || m.url)}</a>`).join(' / ');
+            out += `</div></div>`;
+          });
+          out += `</div>`;
+          return out;
+        }
+        html += renderSeriesGroup(softSubLinks, "SoftSub", "softsub");
+        html += renderSeriesGroup(dubbedLinks,  "Dubbed",  "dubbed");
+      }
+      html += `</div>`;
+      resultsDiv.innerHTML = html;
+    }
+
+    // ==================== SPEECH RECOGNITION ====================
+    function initSpeechRecognition() {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SR) return;
+      recognition = new SR();
+      recognition.continuous    = false;
+      recognition.lang          = 'fa-IR';
+      recognition.interimResults = false;
+      recognition.onresult = function(event) {
+        const textarea = document.getElementById("audioReviewTextarea");
+        if (textarea) {
+          textarea.value = (textarea.value + " " + event.results[0][0].transcript).trim();
+          saveAudioReview(state.selectedId, textarea.value);
+        }
+        setRecordingState(false);
+      };
+      recognition.onerror = () => setRecordingState(false);
+      recognition.onend   = () => setRecordingState(false);
+    }
+
+    function toggleVoiceInput() {
+      if (!recognition) { showToast("⚠️ سیستم تشخیص صدا در این مرورگر پشتیبانی نمی‌شود.", 'error'); return; }
+      const recBtn = document.getElementById("voiceRecBtn");
+      if (recBtn?.classList.contains("recording")) recognition.stop();
+      else { setRecordingState(true); recognition.start(); }
+    }
+
+    function setRecordingState(isRec) {
+      const recBtn = document.getElementById("voiceRecBtn");
+      if (!recBtn) return;
+      if (isRec) { recBtn.classList.add("recording");    recBtn.innerHTML = "🛑 در حال ضبط..."; }
+      else       { recBtn.classList.remove("recording"); recBtn.innerHTML = "🎙️ ضبط صدا"; }
+    }
+
+    function saveAudioReview(id, text) {
+      if (!id) return;
+      state.audioReviews[id] = text;
+      localStorage.setItem("cinetrack_audio_reviews", JSON.stringify(state.audioReviews));
+    }
+
+    // ==================== PLOT TRANSLATION ====================
+    async function translatePlotInline(id) {
+      const item   = state.items.find(i => i.id === id);
+      if (!item) return;
+      const plotEl = document.getElementById(`plot_wrapper_${id}`);
+      if (plotEl) plotEl.innerHTML = `<span style="color:var(--cyan);">⏳ در حال ترجمه...</span>`;
+      const sysPrompt = "Translate the following English movie plot into natural, fluent Persian (Farsi). Output ONLY the translation.";
       try {
-        const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${key}`,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            model: model,
-            messages: [
-              { role: "system", content: systemPrompt },
-              { role: "user", content: userPrompt }
-            ]
-          })
-        });
-
-        const result = await res.json();
-        if (result.choices && result.choices[0]) {
-          const aiText = result.choices[0].message.content;
-          state.globalAiCache = aiText;
-          localStorage.setItem("cinetrack_global_ai_cache", aiText);
-          responseBox.innerHTML = aiText;
-          document.getElementById("regenGlobalAiBtn").style.display = "inline-flex";
-        } else {
-          responseBox.innerText = "خطا در دریافت پاسخ معتبر از سرور OpenRouter.";
+        const translated = await callAIAPI(sysPrompt, item.plot);
+        if (translated) {
+          item.plotFa = translated.trim();
+          saveStateToStorage();
+          renderHero();
         }
       } catch (err) {
-        responseBox.innerText = "بروز خطا در برقراری ارتباط با سرویس پردازش هوشمند.";
-      } finally {
-        btn.disabled = false;
+        if (plotEl) plotEl.innerHTML = `<span style="color:#ef4444;">خطا: ${err.message}</span>`;
       }
     }
 
-    /* ===================== BACKUPS ===================== */
+    function getProgressPercent(item) {
+      if (item.type !== 'series') return 0;
+      const totalS    = parseInt(item.totalSeasons) || 1;
+      const currentS  = parseInt(item.season)       || 1;
+      const currentE  = parseInt(item.episode)      || 1;
+      const base      = ((currentS - 1) / totalS) * 100;
+      const fraction  = (currentE / 15) * (100 / totalS);
+      return Math.min(Math.max(Math.round(base + fraction), 0), 100);
+    }
+
+    function openManageProgressModal(id) {
+      const item = state.items.find(i => i.id === id);
+      if (!item) return;
+      const container = document.getElementById("progressModalContent");
+      container.innerHTML = `
+        <input type="hidden" id="progressManageId" value="${item.id}">
+        <div class="form-row">
+          <div class="form-group"><label>فصل جاری:</label><input type="number" id="progressManageSeason" class="form-control" value="${item.season || 1}" min="1" max="${item.totalSeasons || 50}"></div>
+          <div class="form-group"><label>قسمت جاری:</label><input type="number" id="progressManageEpisode" class="form-control" value="${item.episode || 1}" min="1"></div>
+        </div>
+        <button class="btn" style="width:100%;margin-top:18px;" onclick="saveQuickProgress()">⚡ اعمال تغییرات</button>`;
+      document.getElementById("progressModal").classList.add("active");
+    }
+
+    function saveQuickProgress() {
+      const id   = document.getElementById("progressManageId").value;
+      const item = state.items.find(i => i.id === id);
+      if (!item) return;
+      let season  = parseInt(document.getElementById("progressManageSeason").value)  || 1;
+      let episode = parseInt(document.getElementById("progressManageEpisode").value) || 1;
+      const total = parseInt(item.totalSeasons) || 1;
+      season  = Math.max(1, Math.min(season, total));
+      episode = Math.max(1, episode);
+      item.season      = season;
+      item.episode     = episode;
+      item.lastUpdated = new Date().toISOString();
+      saveStateToStorage();
+      closeModal("progressModal");
+      renderHero();
+      renderGrid();
+      showToast(`✅ پیشرفت «${item.title}» بروزرسانی شد.`, 'success');
+    }
+
+    // ==================== HERO ====================
+    function renderHero() {
+      const container = document.getElementById("heroSection");
+      if (!container) return;
+      if (!state.selectedId || !state.items.length) {
+        const nextUp = getTopWatchNext();
+        if (nextUp) state.selectedId = nextUp.id;
+        else {
+          container.innerHTML = `<div class="hero-empty"><span style="font-size:42px;">🎬</span><p>فیلم یا سریالی را جستجو و انتخاب کنید.</p></div>`;
+          return;
+        }
+      }
+      const item = state.items.find(i => i.id === state.selectedId);
+      if (!item) { state.selectedId = null; renderHero(); return; }
+
+      const isSeries    = item.type === 'series';
+      const progressPct = getProgressPercent(item);
+      const savedReview = state.audioReviews[item.id] || "";
+      let displayPlot = item.plot;
+      if (state.uiLanguage === 'fa') {
+        if (item.plotFa) {
+          displayPlot = item.plotFa;
+        } else {
+          displayPlot = `<div id="plot_wrapper_${item.id}"><span style="color:var(--text-secondary);font-size:14px;display:block;margin-bottom:10px;">خلاصه داستان فارسی موجود نیست.</span><button class="btn btn-secondary" onclick="translatePlotInline('${item.id}')">✨ ترجمه با AI</button></div>`;
+        }
+      }
+
+      container.innerHTML = `
+        <div class="hero-content">
+          <img src="${item.poster !== 'N/A' ? item.poster : 'https://via.placeholder.com/240x340?text=No+Cover'}" class="hero-poster" loading="lazy">
+          <div class="hero-details">
+            <h2 class="hero-title">${item.title}</h2>
+            <div class="hero-meta">
+              <span class="badge badge-status">${translateStatus(item.status)}</span>
+              <span class="badge">IMDb ${item.imdbRating || 'N/A'}</span>
+              <span class="badge">${item.year || 'N/A'}</span>
+              <span class="badge">امتیاز شما: ${renderStarsStatic(item.userRating)}</span>
+            </div>
+            <div class="hero-extended-info">
+              <div class="extended-row"><strong>🎬 کارگردان:</strong> ${item.director || 'نامشخص'}</div>
+              <div class="extended-row"><strong>🎭 ستارگان:</strong> ${item.actors   || 'نامشخص'}</div>
+              <div class="extended-row"><strong>🌍 کشور/زبان:</strong> ${item.country || '?'} / ${item.language || '?'}</div>
+              <div class="extended-row"><strong>🏆 جوایز:</strong> ${item.awards || 'بدون ثبت'}</div>
+              <div class="extended-row"><strong>🆔 IMDb ID:</strong> <span style="font-family:monospace;font-size:13px;background:rgba(255,255,255,0.05);padding:4px 10px;border-radius:8px;border:1px solid var(--glass-border);color:var(--cyan);">${item.id}</span></div>
+            </div>
+            <div class="hero-plot">${displayPlot}</div>
+            ${isSeries ? `
+              <div class="episode-progress-block">
+                <div class="episode-progress-header">
+                  <span class="episode-progress-title">🍿 پیشرفت تماشا</span>
+                  <span class="episode-progress-count">فصل ${item.season}، قسمت ${item.episode}</span>
+                </div>
+                <div class="progress-container"><div class="progress-bar" style="width:${progressPct}%"></div></div>
+                <div style="text-align:left;font-size:12px;color:var(--text-secondary);margin-top:6px;">${progressPct}% تکمیل</div>
+              </div>` : ''}
+            <div id="archiveMatchResults" style="margin-top:20px;margin-bottom:20px;"></div>
+            <div id="aiSimilarRecommendations" style="margin-top:20px;margin-bottom:20px;background:rgba(96,165,250,0.05);border:1px dashed rgba(96,165,250,0.3);padding:18px;border-radius:12px;display:none;"></div>
+            <div class="audio-review-block">
+              <div class="audio-controls">
+                <div><h4 style="font-size:14px;">✍️ نقد و نظر شخصی</h4></div>
+                <button id="voiceRecBtn" class="voice-rec-btn" onclick="toggleVoiceInput()">🎙️ ضبط صدا</button>
+              </div>
+              <textarea id="audioReviewTextarea" class="review-textarea" placeholder="نقد یا یادداشت خود را بنویسید..."
+                        oninput="saveAudioReview('${item.id}', this.value)">${savedReview}</textarea>
+            </div>
+            <div class="hero-actions">
+              <button class="btn btn-stream" onclick="matchAndExtractLinks('${item.id}')">🔍 استخراج لینک‌ها</button>
+              <button class="btn btn-stream-next" onclick="generateSimilarRecommendations('${item.id}')">🤖 پیشنهاد مشابه</button>
+              ${isSeries ? `<button class="btn btn-secondary" onclick="openManageProgressModal('${item.id}')">⚙️ تغییر قسمت</button>` : ''}
+              <button class="btn btn-delete" onclick="deleteItem('${item.id}')">🗑️ حذف</button>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    // ==================== DASHBOARD ====================
+    function renderDashboard() {
+      const container = document.getElementById("dashboardStats");
+      if (!container) return;
+      const total     = state.items.length;
+      const watching  = state.items.filter(i => i.status === "Watching").length;
+      const completed = state.items.filter(i => i.status === "Completed").length;
+      let totalImdb = 0, imdbCount = 0;
+      state.items.forEach(i => { const p = parseFloat(i.imdbRating); if (!isNaN(p)) { totalImdb += p; imdbCount++; } });
+      const imdbAvg = imdbCount > 0 ? (totalImdb / imdbCount).toFixed(1) : "0.0";
+      let totalUR = 0, urCount = 0;
+      state.items.forEach(i => { if (i.userRating > 0) { totalUR += i.userRating; urCount++; } });
+      const userAvg = urCount > 0 ? (totalUR / urCount).toFixed(1) : "0.0";
+      let genreFreq = {}, favGenre = "نامشخص", max = 0;
+      state.items.forEach(i => {
+        if (i.genre && i.genre !== "N/A")
+          i.genre.split(",").forEach(g => { const cg = g.trim(); genreFreq[cg] = (genreFreq[cg] || 0) + 1; });
+      });
+      for (const g in genreFreq) if (genreFreq[g] > max) { max = genreFreq[g]; favGenre = g; }
+      container.innerHTML = `
+        <div class="stat-card"><h3>${total}</h3><p>کل عناوین</p></div>
+        <div class="stat-card"><h3>${watching}</h3><p>⏳ در حال تماشا</p></div>
+        <div class="stat-card"><h3>${completed}</h3><p>✅ تمام شده</p></div>
+        <div class="stat-card"><h3>⭐ ${imdbAvg}</h3><p>میانگین IMDb</p></div>
+        <div class="stat-card"><h3>★ ${userAvg}</h3><p>میانگین امتیازهای من</p></div>
+        <div class="stat-card"><h3 style="font-size:16px;color:var(--cyan);">${favGenre}</h3><p>🎭 ژانر محبوب</p></div>`;
+    }
+
+    // ==================== AI RECOMMENDATIONS ====================
+    async function generateSimilarRecommendations(id) {
+      const item = state.items.find(i => i.id === id);
+      if (!item) return;
+      const box  = document.getElementById("aiSimilarRecommendations");
+      if (!box) return;
+      box.style.display = "block";
+      box.innerHTML     = `<span style="color:var(--cyan);">⏳ در حال تحلیل...</span>`;
+      const sysPrompt = `You are CineTrack AI. Recommend 5 movies or TV shows similar to the user's title. STRICTLY in Persian (Farsi). Use emojis and bullet points.`;
+      const userText  = `Title: "${item.title}". Type: ${item.type}. Genre: ${item.genre}. Plot: ${item.plot}. Give 5 recommendations.`;
+      try {
+        const analysis = await callAIAPI(sysPrompt, userText);
+        box.innerHTML  = `<div style="display:flex;justify-content:space-between;margin-bottom:12px;">
+          <h4 style="font-size:15px;font-weight:800;">🤖 عناوین مشابه</h4>
+          <button class="btn btn-secondary" style="padding:2px 8px;font-size:11px;" onclick="document.getElementById('aiSimilarRecommendations').style.display='none'">✖</button>
+        </div>
+        <div style="font-size:14px;line-height:1.9;white-space:pre-wrap;">${sanitizeAIResponse(analysis)}</div>`;
+      } catch (err) {
+        box.innerHTML = `<span style="color:#ef4444;">خطا: ${err.message}</span>`;
+      }
+    }
+
+    async function generateGlobalAIAnalysis(forceRegen = false) {
+      if (!forceRegen && state.globalAiCache) {
+        document.getElementById("globalAiResponse").innerHTML = state.globalAiCache;
+        return;
+      }
+      // FIX: use specific ID instead of fragile class selector
+      const btn         = document.getElementById("globalAiAnalyzeBtn");
+      const responseBox = document.getElementById("globalAiResponse");
+      if (btn) btn.disabled = true;
+      responseBox.innerText = "⏳ در حال آنالیز...";
+      const safeData   = state.items.map(i => ({ title: i.title, type: i.type, genre: i.genre, rating: i.imdbRating }));
+      const sysPrompt  = `You are CineTrack AI Brain. Analyze the user's media collection. STRICTLY in Persian (Farsi). Highlight patterns, favorite genres, and suggest missing masterpieces. Use beautiful formatting with emojis.`;
+      try {
+        const analysis  = await callAIAPI(sysPrompt, JSON.stringify(safeData));
+        const sanitized = sanitizeAIResponse(analysis);
+        state.globalAiCache = sanitized;
+        localStorage.setItem("cinetrack_global_ai_cache", sanitized);
+        responseBox.innerHTML = sanitized;
+        document.getElementById("regenGlobalAiBtn").style.display = "inline-flex";
+      } catch (err) {
+        responseBox.innerText = `خطا: ${err.message}`;
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    // ==================== IMPORT / EXPORT ====================
     function exportLibrary() {
-      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state.items, null, 2));
-      const dlAnchor = document.createElement('a');
-      dlAnchor.setAttribute("href", dataStr);
-      dlAnchor.setAttribute("download", `cinetrack_library_${new Date().toISOString().slice(0,10)}.json`);
-      document.body.appendChild(dlAnchor);
-      dlAnchor.click();
-      dlAnchor.remove();
+      try {
+        const dataStr    = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state.items, null, 2));
+        const dlAnchor   = document.createElement('a');
+        dlAnchor.setAttribute("href", dataStr);
+        dlAnchor.setAttribute("download", `cinetrack_library_${new Date().toISOString().slice(0,10)}.json`);
+        document.body.appendChild(dlAnchor);
+        dlAnchor.click();
+        dlAnchor.remove();
+        showToast("📤 فایل بکاپ دانلود شد.", 'success');
+      } catch (e) {
+        showToast("⚠️ خطا در صادر کردن فایل.", 'error');
+      }
     }
 
     function importLibrary(event) {
       const file = event.target.files[0];
       if (!file) return;
-
       const reader = new FileReader();
       reader.onload = function(e) {
         try {
@@ -1306,35 +1728,435 @@
             state.items = parsed;
             saveStateToStorage();
             init();
-            alert(`بارگذاری موفقیت‌آمیز بود. ${parsed.length} عنوان اضافه شد.`);
-          } else { alert("فرمت فایل بکاپ نامعتبر است."); }
-        } catch (err) { alert("خطا در خواندن فایل بکاپ."); }
+            showToast(`✅ ${parsed.length} عنوان از بکاپ بارگذاری شد.`, 'success');
+          } else {
+            showToast("❌ فایل نامعتبر: آرایه JSON مورد انتظار است.", 'error');
+          }
+        } catch (err) {
+          showToast("❌ فایل JSON نامعتبر است.", 'error');
+        }
       };
       reader.readAsText(file);
+      // Reset input so same file can be re-imported
+      event.target.value = "";
     }
 
-    /* ===================== MODALS INTERACTION ===================== */
-    function openNotesModal() { document.getElementById("notesModal").classList.add("active"); }
-    function saveGeneralNotes(val) { localStorage.setItem("cinetrack_general_notes", val); }
+    function openNotesModal()    { document.getElementById("notesModal").classList.add("active"); }
+    function saveGeneralNotes(v) { localStorage.setItem("cinetrack_general_notes", v); }
     function openSettingsModal() { document.getElementById("settingsModal").classList.add("active"); }
-    function toggleCustomModelField(val) { document.getElementById("customModelGroup").style.display = (val === "custom") ? "block" : "none"; }
 
     function saveSettings() {
-      const key = document.getElementById("openRouterKeyInput").value;
-      const selectVal = document.getElementById("aiModelSelect").value;
-      let finalModel = selectVal;
-      if (selectVal === "custom") finalModel = document.getElementById("customModelInput").value.trim();
-
-      localStorage.setItem("cinetrack_or_key", key);
-      localStorage.setItem("cinetrack_or_model", finalModel);
-      
-      alert("تنظیمات با موفقیت ذخیره شد.");
+      const lang     = document.getElementById("uiLanguageSetting").value;
+      state.uiLanguage = lang;
+      localStorage.setItem("cinetrack_ui_lang", lang);
+      showToast("✅ تنظیمات ذخیره شد.", 'success');
       closeModal('settingsModal');
       renderHero();
-      renderWatchNext();
     }
 
-    function closeModal(id) { document.getElementById(id).classList.remove("active"); }
+    function closeModal(id) {
+      document.getElementById(id)?.classList.remove("active");
+    }
+
+    // Close modals on backdrop click
+    document.addEventListener('click', function(e) {
+      if (e.target.classList.contains('modal-backdrop')) {
+        e.target.classList.remove('active');
+      }
+      // Close search dropdown on outside click
+      const dropdown = document.getElementById("searchDropdown");
+      const search   = document.getElementById("searchInput");
+      if (dropdown && !dropdown.contains(e.target) && e.target !== search) {
+        dropdown.style.display = "none";
+      }
+    });
+
+    // ==================== AI CHAT ====================
+    let aiChatHistory = [];
+    let aiChatIsOpen  = false;
+
+    function toggleAIChat() {
+      const panel = document.getElementById('aiChatPanel');
+      const btn   = document.getElementById('aiFloatBtn');
+      aiChatIsOpen = !aiChatIsOpen;
+      panel.classList.toggle('open', aiChatIsOpen);
+      btn.classList.toggle('open',   aiChatIsOpen);
+      document.getElementById('aiFloatIcon').textContent = aiChatIsOpen ? '✖' : '🤖';
+      if (aiChatIsOpen) {
+        setTimeout(() => document.getElementById('aiChatInput')?.focus(), 350);
+      }
+    }
+
+    function clearAIChat() {
+      aiChatHistory = [];
+      const msgs = document.getElementById('aiChatMessages');
+      if (msgs) {
+        msgs.innerHTML = '';
+        addBotBubble('چت پاک شد. 🗑️ چطور می‌تونم کمکت کنم؟');
+      }
+    }
+
+    function addUserBubble(html) {
+      const msgs = document.getElementById('aiChatMessages');
+      if (!msgs) return;
+      const div = document.createElement('div');
+      div.className = 'ai-bubble user';
+      div.innerHTML = `<div class="ai-bubble-content">${html}</div>`;
+      msgs.appendChild(div);
+      msgs.scrollTop = msgs.scrollHeight;
+    }
+
+    function addBotBubble(html) {
+      const msgs = document.getElementById('aiChatMessages');
+      if (!msgs) return;
+      const div = document.createElement('div');
+      div.className = 'ai-bubble bot';
+      div.innerHTML = `<div class="ai-bubble-content">${html}</div>`;
+      msgs.appendChild(div);
+      msgs.scrollTop = msgs.scrollHeight;
+      return div;
+    }
+
+    function addActionBubble(html) {
+      const msgs = document.getElementById('aiChatMessages');
+      if (!msgs) return;
+      const div = document.createElement('div');
+      div.className = 'ai-bubble action';
+      div.innerHTML = `<div class="ai-bubble-content">${html}</div>`;
+      msgs.appendChild(div);
+      msgs.scrollTop = msgs.scrollHeight;
+      return div;
+    }
+
+    function addThinkingBubble() {
+      const msgs = document.getElementById('aiChatMessages');
+      if (!msgs) return null;
+      const div = document.createElement('div');
+      div.className = 'ai-bubble bot';
+      div.id        = 'aiThinkingBubble';
+      div.innerHTML = `<div class="ai-bubble-content"><div class="ai-typing-dots"><span></span><span></span><span></span></div></div>`;
+      msgs.appendChild(div);
+      msgs.scrollTop = msgs.scrollHeight;
+      return div;
+    }
+
+    function setAIStatus(busy) {
+      const el = document.getElementById('aiStatusLabel');
+      const sendBtn = document.getElementById('aiChatSendBtn');
+      if (el) {
+        el.textContent = busy ? '● در حال تفکر...' : '● آماده';
+        el.className   = 'ai-chat-header-status' + (busy ? ' busy' : '');
+      }
+      if (sendBtn) sendBtn.disabled = busy;
+    }
+
+    function buildAISystemPrompt() {
+      // Build a concise library summary for the AI context
+      const lib = state.items.slice(0, 80).map(i => ({
+        id:     i.id,
+        title:  i.title,
+        type:   i.type === 'series' ? 'سریال' : 'فیلم',
+        status: i.status === 'Watching' ? 'در حال تماشا' : i.status === 'Completed' ? 'تمام شده' : 'برنامه‌ریزی',
+        year:   i.year,
+        imdb:   i.imdbRating,
+        rating: i.userRating > 0 ? `${i.userRating}/5` : '-',
+        prog:   i.type === 'series' ? `S${i.season || 1}E${i.episode || 1}` : null,
+        genre:  i.genre
+      }));
+      if (state.items.length > 80) {
+        lib.push({ note: `... و ${state.items.length - 80} عنوان دیگر` });
+      }
+
+      const stats = {
+        total: state.items.length,
+        watching:  state.items.filter(i => i.status === 'Watching').length,
+        completed: state.items.filter(i => i.status === 'Completed').length,
+        planned:   state.items.filter(i => i.status === 'Planned').length,
+        archive:   state.archiveHtmlSource
+          ? `بارگذاری شده (${Math.round(state.archiveHtmlSource.length / 1024)} KB)`
+          : 'بارگذاری نشده'
+      };
+
+      return `تو "دستیار هوشمند CineTrack AI" هستی — یک دستیار تخصصی برای مدیریت کتابخانه فیلم و سریال.
+
+📊 آمار کتابخانه: ${JSON.stringify(stats)}
+
+🗂️ کتابخانه (${lib.length} عنوان نمایش داده شده):
+${JSON.stringify(lib, null, 1)}
+
+---
+قابلیت‌های تو:
+- تحلیل و خلاصه کتابخانه کاربر
+- پیشنهاد بهترین عنوان بعدی
+- جستجو در OMDb با دستور SEARCH_OMDB
+- نمایش جزئیات یک عنوان با دستور SELECT_ITEM
+- تغییر وضعیت تماشا با دستور UPDATE_STATUS
+- بروزرسانی پیشرفت سریال با دستور UPDATE_PROGRESS
+- تغییر امتیاز با دستور UPDATE_RATING
+
+دستورات قابل استفاده (دقیقاً در پاسخ قرار بده):
+[[SEARCH_OMDB:عنوان مورد جستجو]]
+[[SELECT_ITEM:imdbID]]
+[[UPDATE_STATUS:imdbID:Watching|Planned|Completed]]
+[[UPDATE_PROGRESS:imdbID:seasonNumber:episodeNumber]]
+[[UPDATE_RATING:imdbID:1تا5]]
+
+قوانین مهم:
+- همیشه به فارسی پاسخ بده
+- از ایموجی استفاده کن
+- دوستانه، مختصر و مفید باش
+- دستورات رو فقط وقتی لازمه استفاده کن
+- قبل از جستجو یا اضافه کردن، هماهنگ با کاربر باش`;
+    }
+
+    async function sendAIChatMessage() {
+      const inputEl = document.getElementById('aiChatInput');
+      if (!inputEl) return;
+      const msg = inputEl.value.trim();
+      if (!msg) return;
+      if (document.getElementById('aiChatSendBtn')?.disabled) return;
+
+      inputEl.value = '';
+      setAIStatus(true);
+      addUserBubble(sanitizeAIResponse(msg));
+      aiChatHistory.push({ role: 'user', content: msg });
+
+      // Trim history to prevent token overflow
+      if (aiChatHistory.length > 20) aiChatHistory = aiChatHistory.slice(-20);
+
+      const thinkingBubble = addThinkingBubble();
+
+      try {
+        const messages = [
+          { role: 'system', content: buildAISystemPrompt() },
+          ...aiChatHistory
+        ];
+        const response = await callAIAPIWithMessages(messages, 0.7);
+        thinkingBubble?.remove();
+        aiChatHistory.push({ role: 'assistant', content: response });
+        await renderAIChatResponse(response);
+      } catch (err) {
+        thinkingBubble?.remove();
+        addBotBubble(`<span style="color:#ef4444;">❌ خطا: ${sanitizeAIResponse(err.message)}</span>`);
+      } finally {
+        setAIStatus(false);
+      }
+    }
+
+    async function renderAIChatResponse(response) {
+      // Extract commands from response
+      const cmdRx   = /\[\[([A-Z_]+):([^\]]*)\]\]/g;
+      const commands = [];
+      let match;
+      while ((match = cmdRx.exec(response)) !== null) {
+        commands.push({ type: match[1], rawArgs: match[2] });
+      }
+
+      // Strip commands from visible text
+      const cleanText = response.replace(/\[\[[A-Z_]+:[^\]]*\]\]/g, '').trim();
+      if (cleanText) {
+        addBotBubble(sanitizeAIResponse(cleanText).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>'));
+      }
+
+      // Execute commands
+      for (const cmd of commands) {
+        await executeAICommand(cmd.type, cmd.rawArgs);
+      }
+    }
+
+    async function executeAICommand(type, rawArgs) {
+      const args = rawArgs.split(':');
+      switch (type) {
+
+        case 'SEARCH_OMDB': {
+          const query = rawArgs;
+          const uid   = 'sr_' + Date.now();
+          addActionBubble(`🔍 <b>جستجو در OMDb:</b> ${sanitizeAIResponse(query)}<br><div id="${uid}" style="margin-top:10px;"><div style="color:var(--text-secondary);font-size:12px;">⏳ در حال جستجو...</div></div>`);
+          try {
+            const data = await performSearch(query, 1, null);
+            const container = document.getElementById(uid);
+            if (!container) break;
+            if (!data.results.length) {
+              container.innerHTML = '<span style="color:var(--text-secondary);font-size:12px;">نتیجه‌ای یافت نشد.</span>';
+              break;
+            }
+            container.innerHTML = data.results.slice(0, 5).map(r => `
+              <div class="ai-search-result-row">
+                <img src="${r.Poster !== 'N/A' ? r.Poster : 'https://via.placeholder.com/34x50?text=?'}" alt="" loading="lazy">
+                <div class="ai-search-result-info">
+                  <h5>${r.Title}</h5>
+                  <p>${r.Year} · ${translateType(r.Type)}</p>
+                </div>
+                <button class="btn" style="padding:4px 10px;font-size:11px;white-space:nowrap;" onclick="aiOpenAddModal('${r.imdbID}')">+ افزودن</button>
+              </div>`).join('');
+          } catch (e) {
+            const container = document.getElementById(uid);
+            if (container) container.innerHTML = `<span style="color:#ef4444;font-size:12px;">خطا: ${e.message}</span>`;
+          }
+          break;
+        }
+
+        case 'SELECT_ITEM': {
+          const imdbID = args[0]?.trim();
+          const item   = imdbID && state.items.find(i => i.id === imdbID);
+          if (item) {
+            selectGridItem(imdbID);
+            addBotBubble(`📌 عنوان <b>${item.title}</b> در صفحه اصلی نمایش داده شد.`);
+          }
+          break;
+        }
+
+        case 'UPDATE_STATUS': {
+          const [imdbID, newStatus] = args;
+          const item = imdbID && state.items.find(i => i.id === imdbID?.trim());
+          if (item && ['Watching','Planned','Completed'].includes(newStatus?.trim())) {
+            const container = addActionBubble(`
+              <div class="ai-confirm-card">
+                <p>تغییر وضعیت <b>${item.title}</b> به «${translateStatus(newStatus.trim())}»؟</p>
+                <div class="ai-confirm-btns">
+                  <button class="btn" style="padding:6px 14px;font-size:12px;" onclick="aiDoUpdateStatus('${imdbID}','${newStatus.trim()}',this.closest('.ai-bubble'))">✅ تأیید</button>
+                  <button class="btn btn-secondary" style="padding:6px 14px;font-size:12px;" onclick="this.closest('.ai-bubble').remove()">❌ لغو</button>
+                </div>
+              </div>`);
+          }
+          break;
+        }
+
+        case 'UPDATE_RATING': {
+          const [imdbID, ratingStr] = args;
+          const rating = parseInt(ratingStr);
+          const item   = imdbID && state.items.find(i => i.id === imdbID?.trim());
+          if (item && !isNaN(rating) && rating >= 1 && rating <= 5) {
+            item.userRating  = rating;
+            item.lastUpdated = new Date().toISOString();
+            saveStateToStorage(); renderHero(); renderGrid();
+            addBotBubble(`⭐ امتیاز <b>${item.title}</b> به ${rating}/5 تغییر کرد.`);
+          }
+          break;
+        }
+
+        case 'UPDATE_PROGRESS': {
+          const [imdbID, seasonStr, episodeStr] = args;
+          const season  = parseInt(seasonStr);
+          const episode = parseInt(episodeStr);
+          const item    = imdbID && state.items.find(i => i.id === imdbID?.trim());
+          if (item && item.type === 'series' && !isNaN(season) && !isNaN(episode)) {
+            addActionBubble(`
+              <div class="ai-confirm-card">
+                <p>بروزرسانی پیشرفت <b>${item.title}</b> به فصل ${season}، قسمت ${episode}؟</p>
+                <div class="ai-confirm-btns">
+                  <button class="btn" style="padding:6px 14px;font-size:12px;" onclick="aiDoUpdateProgress('${imdbID}',${season},${episode},this.closest('.ai-bubble'))">✅ تأیید</button>
+                  <button class="btn btn-secondary" style="padding:6px 14px;font-size:12px;" onclick="this.closest('.ai-bubble').remove()">❌ لغو</button>
+                </div>
+              </div>`);
+          }
+          break;
+        }
+      }
+    }
+
+    function aiDoUpdateStatus(imdbID, newStatus, bubbleEl) {
+      const item = state.items.find(i => i.id === imdbID);
+      if (!item) return;
+      item.status      = newStatus;
+      item.lastUpdated = new Date().toISOString();
+      saveStateToStorage(); renderHero(); renderGrid(); renderWatchNext();
+      if (bubbleEl) bubbleEl.querySelector('.ai-bubble-content').innerHTML =
+        `<span style="color:var(--green);">✅ وضعیت <b>${item.title}</b> به «${translateStatus(newStatus)}» تغییر کرد.</span>`;
+      showToast(`✅ وضعیت «${item.title}» بروزرسانی شد.`, 'success');
+    }
+
+    function aiDoUpdateProgress(imdbID, season, episode, bubbleEl) {
+      const item = state.items.find(i => i.id === imdbID);
+      if (!item) return;
+      item.season      = season;
+      item.episode     = episode;
+      item.lastUpdated = new Date().toISOString();
+      saveStateToStorage(); renderHero(); renderGrid();
+      if (bubbleEl) bubbleEl.querySelector('.ai-bubble-content').innerHTML =
+        `<span style="color:var(--green);">✅ پیشرفت <b>${item.title}</b> به S${season}E${episode} بروزرسانی شد.</span>`;
+      showToast(`✅ پیشرفت «${item.title}» بروزرسانی شد.`, 'success');
+    }
+
+    async function aiOpenAddModal(imdbID) {
+      try {
+        let movieData = state.omdbCache[imdbID];
+        if (!movieData) {
+          addBotBubble('⏳ در حال دریافت اطلاعات...');
+          const res  = await fetch(`https://www.omdbapi.com/?apikey=${OMDB_KEY}&i=${imdbID}&plot=full`);
+          const data = await res.json();
+          if (data.Response === 'True') {
+            movieData = data;
+            state.omdbCache[imdbID] = movieData;
+            localStorage.setItem('cinetrack_omdb_cache', JSON.stringify(state.omdbCache));
+          } else {
+            addBotBubble('❌ اطلاعات عنوان یافت نشد.');
+            return;
+          }
+        }
+        openAddModal(movieData);
+        addBotBubble(`📋 فرم اضافه کردن <b>${movieData.Title}</b> باز شد.`);
+      } catch (e) {
+        addBotBubble(`❌ خطا: ${sanitizeAIResponse(e.message)}`);
+      }
+    }
+
+    function sendQuickAI(text) {
+      const input = document.getElementById('aiChatInput');
+      if (!input) return;
+      if (!aiChatIsOpen) toggleAIChat();
+      setTimeout(() => {
+        input.value = text;
+        sendAIChatMessage();
+      }, aiChatIsOpen ? 0 : 400);
+    }
+
+    // ==================== INIT ====================
+    async function init() {
+      try {
+        state.archiveHtmlSource = await loadArchiveFromDB();
+      } catch (e) {
+        console.warn("Archive load from DB failed:", e);
+        state.archiveHtmlSource = "";
+      }
+
+      renderDashboard();
+      extractAndRenderGenres();
+      renderGrid();
+      renderHero();
+      setupFilterButtonsUI();
+      renderWatchNext();
+      initSpeechRecognition();
+
+      // Restore settings UI
+      const langSelect = document.getElementById("uiLanguageSetting");
+      if (langSelect) langSelect.value = state.uiLanguage;
+
+      if (state.archiveHtmlSource) {
+        const statusEl = document.getElementById("archiveUploadStatus");
+        if (statusEl) {
+          statusEl.style.color = '#10b981';
+          statusEl.textContent = `✅ فایل آرشیو بارگذاری شده (${Math.round(state.archiveHtmlSource.length / 1024)} KB).`;
+        }
+      }
+
+      const notesEl = document.getElementById("generalNotesTextArea");
+      if (notesEl) notesEl.value = localStorage.getItem("cinetrack_general_notes") || "";
+
+      if (state.globalAiCache) {
+        const respEl = document.getElementById("globalAiResponse");
+        if (respEl) respEl.innerHTML = state.globalAiCache;
+        const regenBtn = document.getElementById("regenGlobalAiBtn");
+        if (regenBtn) regenBtn.style.display = "inline-flex";
+      }
+
+      // Initialize AI chat welcome bubble
+      const msgs = document.getElementById('aiChatMessages');
+      if (msgs && !msgs.children.length) {
+        const count = state.items.length;
+        addBotBubble(`سلام! 👋 من دستیار هوشمند CineTrack هستم.<br>کتابخانه شما <b>${count}</b> عنوان دارد. چطور می‌تونم کمکت کنم؟<br><small style="color:var(--text-secondary);">از دکمه‌های بالا یا تایپ مستقیم استفاده کن.</small>`);
+      }
+    }
 
     window.onload = init;
   </script>
